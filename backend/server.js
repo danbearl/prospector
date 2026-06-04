@@ -1,0 +1,533 @@
+const express = require('express');
+const cors = require('cors');
+const bodyParser = require('body-parser');
+const db = require('./database');
+const { register, login, verifyToken } = require('./auth');
+
+const app = express();
+const PORT = process.env.PORT || 3001;
+
+// Middleware
+app.use(cors());
+app.use(bodyParser.json());
+app.use(bodyParser.urlencoded({ extended: true }));
+
+// Helper function to promisify database queries
+const dbRun = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.run(sql, params, function(err) {
+      if (err) reject(err);
+      else resolve(this);
+    });
+  });
+};
+
+const dbGet = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.get(sql, params, (err, row) => {
+      if (err) reject(err);
+      else resolve(row);
+    });
+  });
+};
+
+const dbAll = (sql, params = []) => {
+  return new Promise((resolve, reject) => {
+    db.all(sql, params, (err, rows) => {
+      if (err) reject(err);
+      else resolve(rows);
+    });
+  });
+};
+
+// ==================== AUTHENTICATION ROUTES ====================
+
+// Register new user
+app.post('/api/auth/register', async (req, res) => {
+  try {
+    const { username, password, email } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+
+    if (password.length < 6) {
+      return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    const result = await register(db, username, password, email);
+    res.status(201).json(result);
+  } catch (err) {
+    if (err.message === 'Username already exists') {
+      res.status(409).json({ error: err.message });
+    } else {
+      res.status(500).json({ error: err.message });
+    }
+  }
+});
+
+// Login user
+app.post('/api/auth/login', async (req, res) => {
+  try {
+    const { username, password } = req.body;
+    
+    if (!username || !password) {
+      return res.status(400).json({ error: 'Username and password are required' });
+    }
+
+    const result = await login(db, username, password);
+    res.json(result);
+  } catch (err) {
+    if (err.message === 'Invalid username or password') {
+      res.status(401).json({ error: err.message });
+    } else {
+      res.status(500).json({ error: err.message });
+    }
+  }
+});
+
+// Verify token (check if user is authenticated)
+app.get('/api/auth/verify', verifyToken, (req, res) => {
+  res.json({
+    success: true,
+    user: {
+      id: req.userId,
+      username: req.username
+    }
+  });
+});
+
+// Logout (client-side token removal, but endpoint for consistency)
+app.post('/api/auth/logout', (req, res) => {
+  res.json({ success: true, message: 'Logged out successfully' });
+});
+
+// Get user profile
+app.get('/api/auth/profile', verifyToken, async (req, res) => {
+  try {
+    const user = await dbGet(
+      'SELECT id, username, email, created_at FROM users WHERE id = ?',
+      [req.userId]
+    );
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    res.json(user);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update user profile (requires current password)
+app.put('/api/auth/profile', verifyToken, async (req, res) => {
+  try {
+    const { currentPassword, username, email } = req.body;
+    
+    if (!currentPassword) {
+      return res.status(400).json({ error: 'Current password is required' });
+    }
+
+    // Verify current password
+    const user = await dbGet('SELECT * FROM users WHERE id = ?', [req.userId]);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const bcrypt = require('bcrypt');
+    const isValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isValid) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    // Update user information
+    await dbRun(
+      'UPDATE users SET username = ?, email = ? WHERE id = ?',
+      [username || user.username, email, req.userId]
+    );
+
+    const updatedUser = await dbGet(
+      'SELECT id, username, email, created_at FROM users WHERE id = ?',
+      [req.userId]
+    );
+    res.json({ success: true, user: updatedUser });
+  } catch (err) {
+    if (err.message.includes('UNIQUE constraint failed')) {
+      res.status(409).json({ error: 'Username already exists' });
+    } else {
+      res.status(500).json({ error: err.message });
+    }
+  }
+});
+
+// Change password (requires current password)
+app.post('/api/auth/change-password', verifyToken, async (req, res) => {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({ error: 'Current password and new password are required' });
+    }
+
+    if (newPassword.length < 6) {
+      return res.status(400).json({ error: 'New password must be at least 6 characters' });
+    }
+
+    // Verify current password
+    const user = await dbGet('SELECT * FROM users WHERE id = ?', [req.userId]);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const bcrypt = require('bcrypt');
+    const isValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isValid) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    // Hash new password and update
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await dbRun(
+      'UPDATE users SET password = ? WHERE id = ?',
+      [hashedPassword, req.userId]
+    );
+
+    res.json({ success: true, message: 'Password changed successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete user account (requires current password)
+app.delete('/api/auth/account', verifyToken, async (req, res) => {
+  try {
+    const { currentPassword } = req.body;
+    
+    if (!currentPassword) {
+      return res.status(400).json({ error: 'Current password is required to delete account' });
+    }
+
+    // Verify current password
+    const user = await dbGet('SELECT * FROM users WHERE id = ?', [req.userId]);
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    const bcrypt = require('bcrypt');
+    const isValid = await bcrypt.compare(currentPassword, user.password);
+    if (!isValid) {
+      return res.status(401).json({ error: 'Current password is incorrect' });
+    }
+
+    // Delete user (CASCADE will delete all associated data)
+    await dbRun('DELETE FROM users WHERE id = ?', [req.userId]);
+
+    res.json({ success: true, message: 'Account deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== COMPANIES ROUTES ====================
+
+// Get all companies (filtered by user)
+app.get('/api/companies', verifyToken, async (req, res) => {
+  try {
+    const companies = await dbAll('SELECT * FROM companies WHERE user_id = ? ORDER BY name', [req.userId]);
+    res.json(companies);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get single company (filtered by user)
+app.get('/api/companies/:id', verifyToken, async (req, res) => {
+  try {
+    const company = await dbGet('SELECT * FROM companies WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
+    if (!company) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+    res.json(company);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create company (with user_id)
+app.post('/api/companies', verifyToken, async (req, res) => {
+  try {
+    const { name, industry, website, location, territory, notes } = req.body;
+    const result = await dbRun(
+      'INSERT INTO companies (user_id, name, industry, website, location, territory, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
+      [req.userId, name, industry, website, location, territory, notes]
+    );
+    const company = await dbGet('SELECT * FROM companies WHERE id = ?', [result.lastID]);
+    res.status(201).json(company);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update company (filtered by user)
+app.put('/api/companies/:id', verifyToken, async (req, res) => {
+  try {
+    const { name, industry, website, location, territory, notes } = req.body;
+    await dbRun(
+      'UPDATE companies SET name = ?, industry = ?, website = ?, location = ?, territory = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+      [name, industry, website, location, territory, notes, req.params.id, req.userId]
+    );
+    const company = await dbGet('SELECT * FROM companies WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
+    if (!company) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+    res.json(company);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete company (filtered by user)
+app.delete('/api/companies/:id', verifyToken, async (req, res) => {
+  try {
+    const result = await dbRun('DELETE FROM companies WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Company not found' });
+    }
+    res.json({ message: 'Company deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== CONTACTS ROUTES ====================
+
+// Get all contacts with company info (filtered by user)
+app.get('/api/contacts', verifyToken, async (req, res) => {
+  try {
+    const contacts = await dbAll(`
+      SELECT c.*, co.name as company_name
+      FROM contacts c
+      LEFT JOIN companies co ON c.company_id = co.id
+      WHERE c.user_id = ?
+      ORDER BY c.last_name, c.first_name
+    `, [req.userId]);
+    res.json(contacts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get contacts by company (filtered by user)
+app.get('/api/companies/:id/contacts', verifyToken, async (req, res) => {
+  try {
+    const contacts = await dbAll(
+      'SELECT * FROM contacts WHERE company_id = ? AND user_id = ? ORDER BY last_name, first_name',
+      [req.params.id, req.userId]
+    );
+    res.json(contacts);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get single contact (filtered by user)
+app.get('/api/contacts/:id', verifyToken, async (req, res) => {
+  try {
+    const contact = await dbGet(`
+      SELECT c.*, co.name as company_name
+      FROM contacts c
+      LEFT JOIN companies co ON c.company_id = co.id
+      WHERE c.id = ? AND c.user_id = ?
+    `, [req.params.id, req.userId]);
+    if (!contact) {
+      return res.status(404).json({ error: 'Contact not found' });
+    }
+    res.json(contact);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create contact (with user_id)
+app.post('/api/contacts', verifyToken, async (req, res) => {
+  try {
+    const { company_id, first_name, last_name, position, influence_level, lead_status, email, phone, linkedin, notes } = req.body;
+    const result = await dbRun(
+      'INSERT INTO contacts (user_id, company_id, first_name, last_name, position, influence_level, lead_status, email, phone, linkedin, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
+      [req.userId, company_id, first_name, last_name, position, influence_level, lead_status || 'Potential Lead', email, phone, linkedin, notes]
+    );
+    const contact = await dbGet('SELECT * FROM contacts WHERE id = ?', [result.lastID]);
+    res.status(201).json(contact);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update contact (filtered by user)
+app.put('/api/contacts/:id', verifyToken, async (req, res) => {
+  try {
+    const { company_id, first_name, last_name, position, influence_level, lead_status, email, phone, linkedin, notes } = req.body;
+    await dbRun(
+      'UPDATE contacts SET company_id = ?, first_name = ?, last_name = ?, position = ?, influence_level = ?, lead_status = ?, email = ?, phone = ?, linkedin = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+      [company_id, first_name, last_name, position, influence_level, lead_status, email, phone, linkedin, notes, req.params.id, req.userId]
+    );
+    const contact = await dbGet('SELECT * FROM contacts WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
+    if (!contact) {
+      return res.status(404).json({ error: 'Contact not found' });
+    }
+    res.json(contact);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete contact (filtered by user)
+app.delete('/api/contacts/:id', verifyToken, async (req, res) => {
+  try {
+    const result = await dbRun('DELETE FROM contacts WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Contact not found' });
+    }
+    res.json({ message: 'Contact deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== CONTACT RELATIONSHIPS ROUTES ====================
+
+// Get relationships for a contact (filtered by user)
+app.get('/api/contacts/:id/relationships', verifyToken, async (req, res) => {
+  try {
+    const relationships = await dbAll(`
+      SELECT cr.*,
+             c.first_name as related_first_name,
+             c.last_name as related_last_name,
+             c.position as related_position,
+             co.name as related_company_name
+      FROM contact_relationships cr
+      JOIN contacts c ON cr.related_contact_id = c.id
+      LEFT JOIN companies co ON c.company_id = co.id
+      WHERE cr.contact_id = ? AND cr.user_id = ?
+    `, [req.params.id, req.userId]);
+    res.json(relationships);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create relationship (with user_id)
+app.post('/api/contacts/:id/relationships', verifyToken, async (req, res) => {
+  try {
+    const { related_contact_id, relationship_type, notes } = req.body;
+    const result = await dbRun(
+      'INSERT INTO contact_relationships (user_id, contact_id, related_contact_id, relationship_type, notes) VALUES (?, ?, ?, ?, ?)',
+      [req.userId, req.params.id, related_contact_id, relationship_type, notes]
+    );
+    const relationship = await dbGet('SELECT * FROM contact_relationships WHERE id = ?', [result.lastID]);
+    res.status(201).json(relationship);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete relationship (filtered by user)
+app.delete('/api/relationships/:id', verifyToken, async (req, res) => {
+  try {
+    const result = await dbRun('DELETE FROM contact_relationships WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Relationship not found' });
+    }
+    res.json({ message: 'Relationship deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== OUTREACH HISTORY ROUTES ====================
+
+// Get outreach history for a contact (filtered by user)
+app.get('/api/contacts/:id/outreach', verifyToken, async (req, res) => {
+  try {
+    const outreach = await dbAll(
+      'SELECT * FROM outreach_history WHERE contact_id = ? AND user_id = ? ORDER BY outreach_date DESC',
+      [req.params.id, req.userId]
+    );
+    res.json(outreach);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get all outreach history (filtered by user)
+app.get('/api/outreach', verifyToken, async (req, res) => {
+  try {
+    const outreach = await dbAll(`
+      SELECT oh.*,
+             c.first_name,
+             c.last_name,
+             co.name as company_name
+      FROM outreach_history oh
+      JOIN contacts c ON oh.contact_id = c.id
+      LEFT JOIN companies co ON c.company_id = co.id
+      WHERE oh.user_id = ?
+      ORDER BY oh.outreach_date DESC
+    `, [req.userId]);
+    res.json(outreach);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create outreach record (with user_id)
+app.post('/api/contacts/:id/outreach', verifyToken, async (req, res) => {
+  try {
+    const { outreach_type, outreach_date, subject, notes, outcome, follow_up_date } = req.body;
+    const result = await dbRun(
+      'INSERT INTO outreach_history (user_id, contact_id, outreach_type, outreach_date, subject, notes, outcome, follow_up_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+      [req.userId, req.params.id, outreach_type, outreach_date, subject, notes, outcome, follow_up_date]
+    );
+    const outreach = await dbGet('SELECT * FROM outreach_history WHERE id = ?', [result.lastID]);
+    res.status(201).json(outreach);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update outreach record (filtered by user)
+app.put('/api/outreach/:id', verifyToken, async (req, res) => {
+  try {
+    const { outreach_type, outreach_date, subject, notes, outcome, follow_up_date } = req.body;
+    await dbRun(
+      'UPDATE outreach_history SET outreach_type = ?, outreach_date = ?, subject = ?, notes = ?, outcome = ?, follow_up_date = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+      [outreach_type, outreach_date, subject, notes, outcome, follow_up_date, req.params.id, req.userId]
+    );
+    const outreach = await dbGet('SELECT * FROM outreach_history WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
+    if (!outreach) {
+      return res.status(404).json({ error: 'Outreach record not found' });
+    }
+    res.json(outreach);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete outreach record (filtered by user)
+app.delete('/api/outreach/:id', verifyToken, async (req, res) => {
+  try {
+    const result = await dbRun('DELETE FROM outreach_history WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Outreach record not found' });
+    }
+    res.json({ message: 'Outreach record deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== SERVER START ====================
+
+app.listen(PORT, '0.0.0.0', () => {
+  console.log(`Server is running on port ${PORT}`);
+});
+
+// Made with Bob
