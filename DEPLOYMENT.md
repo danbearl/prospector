@@ -106,7 +106,7 @@ docker compose -f docker-compose.dev.yml up --build
 - ✅ Configurable JWT secret
 
 **Ports**:
-- Frontend: http://localhost:3000 (Nginx on port 80)
+- Frontend: http://localhost (Nginx on port 80)
 - Backend: http://localhost:3001
 
 **Configuration File**: `docker-compose.prod.yml` (also copied to `docker-compose.yml`)

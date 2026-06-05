@@ -14,7 +14,7 @@ A full-stack web application for managing sales prospecting activities, tracking
 - **Using Scripts**: Use `stop.sh` (Linux/Mac) / `stop.bat` (Windows)
 
 ### Accessing the Application
-- **Frontend**: http://localhost:3000
+- **Frontend**: http://localhost (production) or http://localhost:3000 (development)
 - **Backend API**: http://localhost:3001
 
 For detailed instructions, see the [Installation](#installation) and [Docker Commands](#docker-commands) sections below.
@@ -109,8 +109,22 @@ This command will:
 - Start both services in detached mode
 - Set up networking between containers
 
+**Note**: The first time you run the application it will create a user account with the default username and a randomly generated password
+You can retrieve the password by running:
+```bash
+docker container logs prospector-backend
+```
+
+Look for the following block in the logs to retrieve the password:
+============================================================
+ADMIN USER CREATED
+Username: Admin
+Temporary Password: <password>
+IMPORTANT: Change this password after first login!
+============================================================
+
 3. **Access the application**:
-- Frontend: `http://localhost:3000`
+- Frontend: `http://localhost`
 - Backend API: `http://localhost:3001`
 
 4. **Shut down the application** (when finished):
@@ -210,7 +224,7 @@ This provides:
 ### Getting Started
 
 1. Start the application using Docker
-2. Open your browser to `http://localhost:3000`
+2. Open your browser to `http://localhost` (production) or `http://localhost:3000` (development)
 3. Begin by adding companies
 4. Add contacts associated with those companies
 5. Track relationships between contacts

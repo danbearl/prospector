@@ -116,7 +116,7 @@ The following environment variable can be configured in `docker-compose.yml`:
    docker compose up -d
    ```
 
-2. Navigate to `http://localhost:3000`
+2. Navigate to `http://localhost` (production) or `http://localhost:3000` (development)
 
 3. You will be redirected to the login page
 
@@ -128,7 +128,7 @@ The following environment variable can be configured in `docker-compose.yml`:
 
 ### Logging In
 
-1. Navigate to `http://localhost:3000/login`
+1. Navigate to `http://localhost/login` (production) or `http://localhost:3000/login` (development)
 
 2. Enter your username and password
 
