@@ -15,7 +15,7 @@ if [ ! -f .env.https ]; then
 fi
 
 echo "Loading environment variables from .env.https..."
-export $(cat .env.https | grep -v '^#' | xargs)
+export $(cat .env.https | grep -v '^#' | tr -d '\r' | xargs)
 
 echo ""
 echo "Configuration:"
@@ -28,6 +28,6 @@ echo "- Backend API: https://${DOMAIN}/api"
 echo "- Traefik Dashboard: http://localhost:8080"
 echo ""
 
-docker-compose -f docker-compose.https.yml up --build
+docker compose -f docker-compose.https.yml up --build -d
 
 # Made with Bob
