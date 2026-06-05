@@ -8,6 +8,6 @@ echo - Development dependencies included
 echo - Frontend: http://localhost:3000
 echo - Backend: http://localhost:3001
 echo.
-docker-compose -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.dev.yml up --build
 
 @REM Made with Bob

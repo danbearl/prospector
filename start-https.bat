@@ -27,6 +27,6 @@ echo - Backend API: https://%DOMAIN%/api
 echo - Traefik Dashboard: http://localhost:8080
 echo.
 
-docker-compose -f docker-compose.https.yml up --build
+docker compose -f docker-compose.https.yml up --build
 
 @REM Made with Bob
