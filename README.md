@@ -116,12 +116,14 @@ docker container logs prospector-backend
 ```
 
 Look for the following block in the logs to retrieve the password:
+```bash
 ============================================================
 ADMIN USER CREATED
 Username: Admin
 Temporary Password: <password>
 IMPORTANT: Change this password after first login!
 ============================================================
+```
 
 3. **Access the application**:
 - Frontend: `http://localhost`
