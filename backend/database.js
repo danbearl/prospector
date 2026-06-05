@@ -173,6 +173,48 @@ db.serialize(() => {
     }
   });
 
+  // Campaigns table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS campaigns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      description TEXT,
+      start_date DATETIME,
+      end_date DATETIME,
+      status TEXT CHECK(status IN ('Active', 'Completed', 'Paused')) DEFAULT 'Active',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+    )
+  `);
+
+  // Add user_id column to campaigns if it doesn't exist (migration)
+  db.all(`PRAGMA table_info(campaigns)`, (err, columns) => {
+    if (!err && columns) {
+      const hasUserId = columns.some(col => col.name === 'user_id');
+      
+      if (!hasUserId) {
+        db.run(`ALTER TABLE campaigns ADD COLUMN user_id INTEGER`, (err) => {
+          if (!err) console.log('Added user_id column to campaigns table');
+        });
+      }
+    }
+  });
+
+  // Outreach-Campaigns junction table (many-to-many)
+  db.run(`
+    CREATE TABLE IF NOT EXISTS outreach_campaigns (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      outreach_id INTEGER NOT NULL,
+      campaign_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (outreach_id) REFERENCES outreach_history(id) ON DELETE CASCADE,
+      FOREIGN KEY (campaign_id) REFERENCES campaigns(id) ON DELETE CASCADE,
+      UNIQUE(outreach_id, campaign_id)
+    )
+  `);
+
   // Create Admin user and assign existing records
   const bcrypt = require('bcrypt');
   const tempPassword = 'Admin' + Math.random().toString(36).substring(2, 10) + '!';

@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getCompanies, getContacts, getAllOutreach } from '../api';
+import { getCompanies, getContacts, getAllOutreach, getCampaigns } from '../api';
 
 function Dashboard() {
   const [stats, setStats] = useState({
     totalCompanies: 0,
     totalContacts: 0,
     totalOutreach: 0,
+    totalCampaigns: 0,
     recentOutreach: []
   });
   const [loading, setLoading] = useState(true);
@@ -17,16 +18,18 @@ function Dashboard() {
 
   const loadDashboardData = async () => {
     try {
-      const [companiesRes, contactsRes, outreachRes] = await Promise.all([
+      const [companiesRes, contactsRes, outreachRes, campaignsRes] = await Promise.all([
         getCompanies(),
         getContacts(),
-        getAllOutreach()
+        getAllOutreach(),
+        getCampaigns()
       ]);
 
       setStats({
         totalCompanies: companiesRes.data.length,
         totalContacts: contactsRes.data.length,
         totalOutreach: outreachRes.data.length,
+        totalCampaigns: campaignsRes.data.length,
         recentOutreach: outreachRes.data.slice(0, 5)
       });
     } catch (error) {
@@ -63,6 +66,12 @@ function Dashboard() {
               </div>
             </div>
             <div className="info-item">
+              <div className="info-label">Total Campaigns</div>
+              <div className="info-value" style={{ fontSize: '2rem', fontWeight: 'bold', color: '#9b59b6' }}>
+                {stats.totalCampaigns}
+              </div>
+            </div>
+            <div className="info-item">
               <div className="info-label">Total Outreach</div>
               <div className="info-value" style={{ fontSize: '2rem', fontWeight: 'bold', color: '#e74c3c' }}>
                 {stats.totalOutreach}
@@ -76,6 +85,7 @@ function Dashboard() {
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
             <Link to="/companies" className="btn btn-primary">Manage Companies</Link>
             <Link to="/contacts" className="btn btn-success">Manage Contacts</Link>
+            <Link to="/campaigns" className="btn btn-info">Manage Campaigns</Link>
             <Link to="/outreach" className="btn btn-secondary">View Outreach History</Link>
           </div>
         </div>

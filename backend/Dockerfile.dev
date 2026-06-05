@@ -19,7 +19,7 @@ RUN mkdir -p /app/data
 # Expose port
 EXPOSE 3001
 
-# Start with nodemon for hot-reloading
-CMD ["npx", "nodemon", "server.js"]
+# Start with node (hot-reloading via volume mount)
+CMD ["node", "server.js"]
 
 # Made with Bob

@@ -8,13 +8,15 @@ The test suite includes comprehensive regression tests for:
 - **Authentication** (`auth.test.js`) - User registration, login, and token verification
 - **API Endpoints** (`api.test.js`) - Companies, contacts, and user data isolation
 
+**Note**: Tests are designed to run on the host machine (not inside Docker containers). This allows for faster test execution and easier debugging during development.
+
 ## Prerequisites
 
 Before running the tests, ensure you have:
 
-1. **Node.js** installed (v14 or higher recommended)
+1. **Node.js** installed (v16 or higher recommended)
 2. **npm** package manager
-3. Backend dependencies installed
+3. Backend dependencies installed on your host machine
 
 ## Installation
 

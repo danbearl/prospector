@@ -64,6 +64,14 @@ export const createOutreach = (contactId, data) => api.post(`/contacts/${contact
 export const updateOutreach = (id, data) => api.put(`/outreach/${id}`, data);
 export const deleteOutreach = (id) => api.delete(`/outreach/${id}`);
 
+// Campaigns
+export const getCampaigns = () => api.get('/campaigns');
+export const getCampaign = (id) => api.get(`/campaigns/${id}`);
+export const createCampaign = (data) => api.post('/campaigns', data);
+export const updateCampaign = (id, data) => api.put(`/campaigns/${id}`, data);
+export const deleteCampaign = (id) => api.delete(`/campaigns/${id}`);
+export const getOutreachCampaigns = (outreachId) => api.get(`/outreach/${outreachId}/campaigns`);
+
 export default api;
 
 // Made with Bob

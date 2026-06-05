@@ -114,6 +114,7 @@ function OutreachHistory() {
                   <th>Contact</th>
                   <th>Company</th>
                   <th>Subject</th>
+                  <th>Campaigns</th>
                   <th>Outcome</th>
                   <th>Follow-up</th>
                   <th>Actions</th>
@@ -129,6 +130,17 @@ function OutreachHistory() {
                     <td><strong>{item.first_name} {item.last_name}</strong></td>
                     <td>{item.company_name}</td>
                     <td>{item.subject || '-'}</td>
+                    <td>
+                      {item.campaigns && item.campaigns.length > 0 ? (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.25rem' }}>
+                          {item.campaigns.map((campaign) => (
+                            <span key={campaign.id} className="badge badge-low" style={{ fontSize: '0.75rem' }}>
+                              {campaign.name}
+                            </span>
+                          ))}
+                        </div>
+                      ) : '-'}
+                    </td>
                     <td>{item.outcome || '-'}</td>
                     <td>
                       {item.follow_up_date ? (

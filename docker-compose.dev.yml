@@ -19,7 +19,7 @@ services:
     networks:
       - prospector-network
     restart: unless-stopped
-    command: npm run dev
+    command: npm start
 
   frontend:
     build:

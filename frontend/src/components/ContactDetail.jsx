@@ -9,7 +9,8 @@ import {
   createOutreach,
   updateOutreach,
   deleteOutreach,
-  getContacts
+  getContacts,
+  getCampaigns
 } from '../api';
 
 function ContactDetail() {
@@ -19,10 +20,12 @@ function ContactDetail() {
   const [relationships, setRelationships] = useState([]);
   const [outreach, setOutreach] = useState([]);
   const [allContacts, setAllContacts] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showRelationshipModal, setShowRelationshipModal] = useState(false);
   const [showOutreachModal, setShowOutreachModal] = useState(false);
   const [editingOutreach, setEditingOutreach] = useState(null);
+  const [showNewCampaignForm, setShowNewCampaignForm] = useState(false);
   
   const [relationshipForm, setRelationshipForm] = useState({
     related_contact_id: '',
@@ -36,7 +39,9 @@ function ContactDetail() {
     subject: '',
     notes: '',
     outcome: '',
-    follow_up_date: ''
+    follow_up_date: '',
+    campaign_ids: [],
+    new_campaign: { name: '', description: '' }
   });
 
   useEffect(() => {
@@ -45,16 +50,18 @@ function ContactDetail() {
 
   const loadContactData = async () => {
     try {
-      const [contactRes, relationshipsRes, outreachRes, contactsRes] = await Promise.all([
+      const [contactRes, relationshipsRes, outreachRes, contactsRes, campaignsRes] = await Promise.all([
         getContact(id),
         getContactRelationships(id),
         getContactOutreach(id),
-        getContacts()
+        getContacts(),
+        getCampaigns()
       ]);
       setContact(contactRes.data);
       setRelationships(relationshipsRes.data);
       setOutreach(outreachRes.data);
       setAllContacts(contactsRes.data.filter(c => c.id !== parseInt(id)));
+      setCampaigns(campaignsRes.data);
     } catch (error) {
       console.error('Error loading contact data:', error);
     } finally {
@@ -133,8 +140,20 @@ function ContactDetail() {
       subject: '',
       notes: '',
       outcome: '',
-      follow_up_date: ''
+      follow_up_date: '',
+      campaign_ids: [],
+      new_campaign: { name: '', description: '' }
     });
+    setShowNewCampaignForm(false);
+  };
+
+  const handleCampaignToggle = (campaignId) => {
+    setOutreachForm(prev => ({
+      ...prev,
+      campaign_ids: prev.campaign_ids.includes(campaignId)
+        ? prev.campaign_ids.filter(id => id !== campaignId)
+        : [...prev.campaign_ids, campaignId]
+    }));
   };
 
   const getInfluenceBadgeClass = (level) => {
@@ -444,6 +463,79 @@ function ContactDetail() {
                   onChange={(e) => setOutreachForm({ ...outreachForm, follow_up_date: e.target.value })}
                 />
               </div>
+
+              {!editingOutreach && (
+                <>
+                  <div className="form-group">
+                    <label>Campaigns</label>
+                    <div style={{ marginTop: '0.5rem', maxHeight: '150px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px', padding: '0.5rem' }}>
+                      {campaigns.length === 0 ? (
+                        <p style={{ color: '#7f8c8d', fontSize: '0.875rem', margin: 0 }}>No campaigns available</p>
+                      ) : (
+                        campaigns.map((campaign) => (
+                          <div key={campaign.id} style={{ marginBottom: '0.5rem' }}>
+                            <label style={{ display: 'flex', alignItems: 'center', cursor: 'pointer', fontWeight: 'normal' }}>
+                              <input
+                                type="checkbox"
+                                checked={outreachForm.campaign_ids.includes(campaign.id)}
+                                onChange={() => handleCampaignToggle(campaign.id)}
+                                style={{ marginRight: '0.5rem' }}
+                              />
+                              <span>{campaign.name}</span>
+                              {campaign.status && (
+                                <span className={`badge badge-${campaign.status === 'Active' ? 'high' : 'medium'}`} style={{ marginLeft: '0.5rem', fontSize: '0.75rem' }}>
+                                  {campaign.status}
+                                </span>
+                              )}
+                            </label>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
+
+                  <div className="form-group">
+                    <button
+                      type="button"
+                      className="btn btn-small btn-secondary"
+                      onClick={() => setShowNewCampaignForm(!showNewCampaignForm)}
+                      style={{ width: '100%' }}
+                    >
+                      {showNewCampaignForm ? '− Cancel New Campaign' : '+ Create New Campaign'}
+                    </button>
+                  </div>
+
+                  {showNewCampaignForm && (
+                    <>
+                      <div className="form-group">
+                        <label>New Campaign Name</label>
+                        <input
+                          type="text"
+                          value={outreachForm.new_campaign.name}
+                          onChange={(e) => setOutreachForm({
+                            ...outreachForm,
+                            new_campaign: { ...outreachForm.new_campaign, name: e.target.value }
+                          })}
+                          placeholder="Enter campaign name"
+                        />
+                      </div>
+                      <div className="form-group">
+                        <label>New Campaign Description</label>
+                        <textarea
+                          value={outreachForm.new_campaign.description}
+                          onChange={(e) => setOutreachForm({
+                            ...outreachForm,
+                            new_campaign: { ...outreachForm.new_campaign, description: e.target.value }
+                          })}
+                          placeholder="Optional description"
+                          rows="2"
+                        />
+                      </div>
+                    </>
+                  )}
+                </>
+              )}
+
               <div className="form-actions">
                 <button type="submit" className="btn btn-success">
                   {editingOutreach ? 'Update' : 'Log'}

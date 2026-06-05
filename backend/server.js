@@ -443,6 +443,93 @@ app.delete('/api/relationships/:id', verifyToken, async (req, res) => {
   }
 });
 
+// ==================== CAMPAIGNS ROUTES ====================
+
+// Get all campaigns (filtered by user)
+app.get('/api/campaigns', verifyToken, async (req, res) => {
+  try {
+    const campaigns = await dbAll('SELECT * FROM campaigns WHERE user_id = ? ORDER BY created_at DESC', [req.userId]);
+    res.json(campaigns);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get single campaign (filtered by user)
+app.get('/api/campaigns/:id', verifyToken, async (req, res) => {
+  try {
+    const campaign = await dbGet('SELECT * FROM campaigns WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+    res.json(campaign);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create campaign (with user_id)
+app.post('/api/campaigns', verifyToken, async (req, res) => {
+  try {
+    const { name, description, start_date, end_date, status } = req.body;
+    const result = await dbRun(
+      'INSERT INTO campaigns (user_id, name, description, start_date, end_date, status) VALUES (?, ?, ?, ?, ?, ?)',
+      [req.userId, name, description, start_date, end_date, status || 'Active']
+    );
+    const campaign = await dbGet('SELECT * FROM campaigns WHERE id = ?', [result.lastID]);
+    res.status(201).json(campaign);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update campaign (filtered by user)
+app.put('/api/campaigns/:id', verifyToken, async (req, res) => {
+  try {
+    const { name, description, start_date, end_date, status } = req.body;
+    await dbRun(
+      'UPDATE campaigns SET name = ?, description = ?, start_date = ?, end_date = ?, status = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+      [name, description, start_date, end_date, status, req.params.id, req.userId]
+    );
+    const campaign = await dbGet('SELECT * FROM campaigns WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
+    if (!campaign) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+    res.json(campaign);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete campaign (filtered by user)
+app.delete('/api/campaigns/:id', verifyToken, async (req, res) => {
+  try {
+    const result = await dbRun('DELETE FROM campaigns WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Campaign not found' });
+    }
+    res.json({ message: 'Campaign deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get campaigns for an outreach record
+app.get('/api/outreach/:id/campaigns', verifyToken, async (req, res) => {
+  try {
+    const campaigns = await dbAll(`
+      SELECT c.*
+      FROM campaigns c
+      JOIN outreach_campaigns oc ON c.id = oc.campaign_id
+      JOIN outreach_history oh ON oc.outreach_id = oh.id
+      WHERE oh.id = ? AND oh.user_id = ?
+    `, [req.params.id, req.userId]);
+    res.json(campaigns);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ==================== OUTREACH HISTORY ROUTES ====================
 
 // Get outreach history for a contact (filtered by user)
@@ -458,7 +545,7 @@ app.get('/api/contacts/:id/outreach', verifyToken, async (req, res) => {
   }
 });
 
-// Get all outreach history (filtered by user)
+// Get all outreach history (filtered by user) with campaigns
 app.get('/api/outreach', verifyToken, async (req, res) => {
   try {
     const outreach = await dbAll(`
@@ -472,22 +559,69 @@ app.get('/api/outreach', verifyToken, async (req, res) => {
       WHERE oh.user_id = ?
       ORDER BY oh.outreach_date DESC
     `, [req.userId]);
+    
+    // Get campaigns for each outreach
+    for (let i = 0; i < outreach.length; i++) {
+      const campaigns = await dbAll(`
+        SELECT c.id, c.name
+        FROM campaigns c
+        JOIN outreach_campaigns oc ON c.id = oc.campaign_id
+        WHERE oc.outreach_id = ?
+      `, [outreach[i].id]);
+      outreach[i].campaigns = campaigns;
+    }
+    
     res.json(outreach);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
-// Create outreach record (with user_id)
+// Create outreach record (with user_id and campaign assignments)
 app.post('/api/contacts/:id/outreach', verifyToken, async (req, res) => {
   try {
-    const { outreach_type, outreach_date, subject, notes, outcome, follow_up_date } = req.body;
+    const { outreach_type, outreach_date, subject, notes, outcome, follow_up_date, campaign_ids, new_campaign } = req.body;
+    
+    // Create the outreach record
     const result = await dbRun(
       'INSERT INTO outreach_history (user_id, contact_id, outreach_type, outreach_date, subject, notes, outcome, follow_up_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
       [req.userId, req.params.id, outreach_type, outreach_date, subject, notes, outcome, follow_up_date]
     );
-    const outreach = await dbGet('SELECT * FROM outreach_history WHERE id = ?', [result.lastID]);
-    res.status(201).json(outreach);
+    const outreachId = result.lastID;
+    
+    // Handle new campaign creation if provided
+    let newCampaignId = null;
+    if (new_campaign && new_campaign.name) {
+      const campaignResult = await dbRun(
+        'INSERT INTO campaigns (user_id, name, description, status) VALUES (?, ?, ?, ?)',
+        [req.userId, new_campaign.name, new_campaign.description || '', 'Active']
+      );
+      newCampaignId = campaignResult.lastID;
+    }
+    
+    // Link outreach to campaigns
+    const campaignIdsToLink = [...(campaign_ids || [])];
+    if (newCampaignId) {
+      campaignIdsToLink.push(newCampaignId);
+    }
+    
+    for (const campaignId of campaignIdsToLink) {
+      await dbRun(
+        'INSERT INTO outreach_campaigns (outreach_id, campaign_id) VALUES (?, ?)',
+        [outreachId, campaignId]
+      );
+    }
+    
+    // Get the created outreach with campaigns
+    const outreach = await dbGet('SELECT * FROM outreach_history WHERE id = ?', [outreachId]);
+    const campaigns = await dbAll(`
+      SELECT c.*
+      FROM campaigns c
+      JOIN outreach_campaigns oc ON c.id = oc.campaign_id
+      WHERE oc.outreach_id = ?
+    `, [outreachId]);
+    
+    res.status(201).json({ ...outreach, campaigns });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

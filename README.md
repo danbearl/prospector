@@ -5,20 +5,19 @@ A full-stack web application for managing sales prospecting activities, tracking
 ## Quick Reference
 
 ### Starting the Application
-- **Docker**: `docker-compose up -d`
-- **Windows (Local)**: Double-click `start.bat` or run it from command prompt
-- **Manual (Local)**: Start backend with `npm start` in `/backend`, then frontend with `npm run dev` in `/frontend`
+- **Production**: `docker-compose up -d` or use `start.sh` (Linux/Mac) / `start-prod.bat` (Windows)
+- **Development**: `docker-compose -f docker-compose.dev.yml up -d` or use `start-dev.sh` (Linux/Mac) / `start-dev.bat` (Windows)
+- **HTTPS**: `docker-compose -f docker-compose.https.yml up -d` or use `start-https.sh` (Linux/Mac) / `start-https.bat` (Windows)
 
 ### Shutting Down the Application
 - **Docker**: `docker-compose down`
-- **Windows (start.bat)**: Close the Backend and Frontend command prompt windows
-- **Manual**: Press `Ctrl+C` in each terminal running the servers
+- **Using Scripts**: Use `stop.sh` (Linux/Mac) / `stop.bat` (Windows)
 
 ### Accessing the Application
 - **Frontend**: http://localhost:3000
 - **Backend API**: http://localhost:3001
 
-For detailed instructions, see the [Installation](#installation) and [Shutting Down the Application](#shutting-down-the-application) sections below.
+For detailed instructions, see the [Installation](#installation) and [Docker Commands](#docker-commands) sections below.
 
 ## Features
 
@@ -72,7 +71,11 @@ prospector/
 │   ├── package.json
 │   └── .gitignore
 ├── docker-compose.yml    # Docker Compose configuration
-├── start.bat             # Windows startup script
+├── start.sh              # Linux/Mac startup script
+├── start-dev.sh          # Development mode startup script
+├── start-prod.sh         # Production mode startup script
+├── start-https.sh        # HTTPS mode startup script
+├── stop.sh               # Stop containers script
 └── README.md
 ```
 
@@ -80,17 +83,12 @@ prospector/
 
 ### Prerequisites
 
-#### Option 1: Docker (Recommended)
 - Docker Desktop (Windows/Mac) or Docker Engine (Linux)
 - Docker Compose (included with Docker Desktop)
 
-#### Option 2: Local Development
-- Node.js (v16 or higher)
-- npm or yarn
+## Running with Docker
 
-## Running with Docker (Recommended)
-
-The easiest way to run Prospector is using Docker Compose, which handles all dependencies and configuration automatically.
+Prospector runs exclusively via Docker containers, which handles all dependencies and configuration automatically.
 
 ### Quick Start with Docker
 
@@ -183,58 +181,35 @@ docker-compose exec backend sh
 docker-compose exec frontend sh
 ```
 
-## Local Development Setup
+## Development Mode
 
-If you prefer to run the application without Docker:
+For development with hot-reloading:
 
-### Backend Setup
-
-1. Navigate to the backend directory:
+**Windows**:
 ```bash
-cd backend
+start-dev.bat
 ```
 
-2. Install dependencies:
+**Linux/Mac**:
 ```bash
-npm install
+./start-dev.sh
 ```
 
-3. Start the backend server:
+Or directly:
 ```bash
-npm start
+docker-compose -f docker-compose.dev.yml up --build
 ```
 
-The backend server will run on `http://localhost:3001`
-
-For development with auto-reload:
-```bash
-npm run dev
-```
-
-### Frontend Setup
-
-1. Navigate to the frontend directory:
-```bash
-cd frontend
-```
-
-2. Install dependencies:
-```bash
-npm install
-```
-
-3. Start the development server:
-```bash
-npm run dev
-```
-
-The frontend will run on `http://localhost:3000`
+This provides:
+- Hot-reloading for backend and frontend
+- Source code mounted as volumes
+- Development dependencies included
 
 ## Usage
 
 ### Getting Started
 
-1. Start the application (using Docker or local development)
+1. Start the application using Docker
 2. Open your browser to `http://localhost:3000`
 3. Begin by adding companies
 4. Add contacts associated with those companies
@@ -243,10 +218,13 @@ The frontend will run on `http://localhost:3000`
 
 ### Shutting Down the Application
 
-#### Docker Shutdown
-
 To stop the Docker containers:
 
+**Using Scripts**:
+- Windows: `stop.bat`
+- Linux/Mac: `./stop.sh`
+
+**Or directly**:
 ```bash
 # Stop containers (keeps data)
 docker-compose down
@@ -260,45 +238,6 @@ The `docker-compose down` command will:
 - Close database connections properly
 - Remove containers and networks
 - Preserve data in volumes (unless `-v` flag is used)
-
-#### Local Development Shutdown
-
-To properly shut down the local development servers:
-
-**Method 1: Using start.bat (Windows)**
-
-If you started the application using `start.bat`, two separate command prompt windows will be open:
-1. **Backend Server** window - Close this window or press `Ctrl+C` to stop the backend
-2. **Frontend Server** window - Close this window or press `Ctrl+C` to stop the frontend
-
-You can close both windows in any order. Each server will shut down gracefully.
-
-**Method 2: Manual Shutdown**
-
-If you started the servers manually in separate terminals:
-
-1. **Stop the Frontend Server**:
-   - In the terminal running the frontend (Vite dev server), press `Ctrl+C`
-   - Confirm the shutdown if prompted (type `Y` if asked)
-
-2. **Stop the Backend Server**:
-   - In the terminal running the backend (Express server), press `Ctrl+C`
-   - The server will gracefully shut down and close database connections
-
-**Method 3: Task Manager (Windows - Emergency Only)**
-
-If servers are unresponsive:
-1. Open Task Manager (`Ctrl+Shift+Esc`)
-2. Find `node.exe` processes
-3. Right-click and select "End Task"
-
-⚠️ **Warning**: This method should only be used as a last resort, as it may not close database connections cleanly.
-
-**Important**: Always shut down the servers properly to ensure:
-- Database connections are closed cleanly
-- No data corruption occurs
-- Ports 3000 and 3001 are released for future use
-- Any pending operations complete successfully
 
 ### API Endpoints
 
@@ -376,19 +315,19 @@ If servers are unresponsive:
 
 ## Development
 
-### Building for Production
-
-Frontend:
-```bash
-cd frontend
-npm run build
-```
-
-The production build will be in the `frontend/dist` directory.
-
 ### Database
 
-The SQLite database file (`prospector.db`) is automatically created in the backend directory when you first start the server. It's excluded from version control via `.gitignore`.
+The SQLite database file (`prospector.db`) is stored in a Docker volume and persists across container restarts. It's automatically created when you first start the application.
+
+### Running Tests
+
+Tests are designed to run on the host machine (not in containers). See [TESTING.md](TESTING.md) for detailed instructions.
+
+```bash
+cd backend
+npm install
+npm test
+```
 
 ## Features in Detail
 

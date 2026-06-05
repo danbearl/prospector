@@ -144,7 +144,7 @@ prospector/
 ├── docker-compose.yml           # Default (production)
 ├── docker-compose.prod.yml      # Production configuration
 ├── docker-compose.dev.yml       # Development configuration
-├── start.bat                    # Legacy start script (production)
+├── start.sh                     # Linux/Mac start script (production)
 ├── start-dev.bat               # Start in development mode
 ├── start-prod.bat              # Start in production mode
 ├── stop.bat                    # Stop all containers

@@ -4,6 +4,7 @@ import Companies from './components/Companies';
 import Contacts from './components/Contacts';
 import ContactDetail from './components/ContactDetail';
 import OutreachHistory from './components/OutreachHistory';
+import Campaigns from './components/Campaigns';
 import Dashboard from './components/Dashboard';
 import Login from './components/Login';
 import Register from './components/Register';
@@ -43,6 +44,7 @@ function AppContent() {
             <NavLink to="/companies">Companies</NavLink>
             <NavLink to="/contacts">Contacts</NavLink>
             <NavLink to="/outreach">Outreach History</NavLink>
+            <NavLink to="/campaigns">Campaigns</NavLink>
           </nav>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <NavLink
@@ -115,6 +117,14 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <OutreachHistory />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/campaigns"
+          element={
+            <ProtectedRoute>
+              <Campaigns />
             </ProtectedRoute>
           }
         />
