@@ -530,6 +530,30 @@ app.get('/api/outreach/:id/campaigns', verifyToken, async (req, res) => {
   }
 });
 
+// Get all outreach for a specific campaign
+app.get('/api/campaigns/:id/outreach', verifyToken, async (req, res) => {
+  try {
+    const outreach = await dbAll(`
+      SELECT 
+        oh.*,
+        co.first_name,
+        co.last_name,
+        co.email,
+        comp.name as company_name
+      FROM outreach_history oh
+      JOIN outreach_campaigns oc ON oh.id = oc.outreach_id
+      JOIN campaigns c ON oc.campaign_id = c.id
+      JOIN contacts co ON oh.contact_id = co.id
+      LEFT JOIN companies comp ON co.company_id = comp.id
+      WHERE c.id = ? AND c.user_id = ?
+      ORDER BY oh.outreach_date DESC
+    `, [req.params.id, req.userId]);
+    res.json(outreach);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ==================== OUTREACH HISTORY ROUTES ====================
 
 // Get outreach history for a contact (filtered by user)

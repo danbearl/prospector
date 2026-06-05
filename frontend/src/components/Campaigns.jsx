@@ -1,11 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { getCampaigns, createCampaign, updateCampaign, deleteCampaign } from '../api';
+import { Link } from 'react-router-dom';
+import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getCampaignOutreach } from '../api';
 
 function Campaigns() {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingCampaign, setEditingCampaign] = useState(null);
+  const [viewingCampaign, setViewingCampaign] = useState(null);
+  const [campaignOutreach, setCampaignOutreach] = useState([]);
+  const [loadingOutreach, setLoadingOutreach] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
     description: '',
@@ -67,6 +71,25 @@ function Campaigns() {
         alert('Failed to delete campaign');
       }
     }
+  };
+
+  const handleViewOutreach = async (campaign) => {
+    setViewingCampaign(campaign);
+    setLoadingOutreach(true);
+    try {
+      const response = await getCampaignOutreach(campaign.id);
+      setCampaignOutreach(response.data);
+    } catch (error) {
+      console.error('Error loading campaign outreach:', error);
+      alert('Failed to load outreach data');
+    } finally {
+      setLoadingOutreach(false);
+    }
+  };
+
+  const closeOutreachView = () => {
+    setViewingCampaign(null);
+    setCampaignOutreach([]);
   };
 
   const resetForm = () => {
@@ -221,7 +244,13 @@ function Campaigns() {
                       </span>
                     </td>
                     <td>
-                      <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+                        <button
+                          className="btn btn-small btn-info"
+                          onClick={() => handleViewOutreach(campaign)}
+                        >
+                          View Outreach
+                        </button>
                         <button
                           className="btn btn-small btn-secondary"
                           onClick={() => handleEdit(campaign)}
@@ -243,6 +272,82 @@ function Campaigns() {
           </div>
         )}
       </div>
+
+      {/* Campaign Outreach Modal */}
+      {viewingCampaign && (
+        <div className="modal-overlay" onClick={closeOutreachView}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <div className="modal-header">
+              <h3 className="modal-title">
+                Outreach for "{viewingCampaign.name}"
+              </h3>
+              <button className="close-btn" onClick={closeOutreachView}>×</button>
+            </div>
+
+            {loadingOutreach ? (
+              <div className="loading">Loading outreach...</div>
+            ) : campaignOutreach.length === 0 ? (
+              <div className="empty-state">
+                <p>No outreach activities associated with this campaign yet</p>
+              </div>
+            ) : (
+              <div>
+                <p style={{ marginBottom: '1rem', color: '#7f8c8d' }}>
+                  Total outreach activities: <strong>{campaignOutreach.length}</strong>
+                </p>
+                <div style={{ maxHeight: '60vh', overflowY: 'auto' }}>
+                  {campaignOutreach.map((outreach) => (
+                    <div key={outreach.id} className="list-item">
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '1rem' }}>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ marginBottom: '0.5rem' }}>
+                            <strong style={{ fontSize: '1.1rem' }}>
+                              {outreach.first_name} {outreach.last_name}
+                            </strong>
+                            {outreach.company_name && (
+                              <span style={{ color: '#7f8c8d', marginLeft: '0.5rem' }}>
+                                @ {outreach.company_name}
+                              </span>
+                            )}
+                          </div>
+                          <div style={{ color: '#7f8c8d', fontSize: '0.875rem', marginBottom: '0.25rem' }}>
+                            <span className="badge badge-low" style={{ marginRight: '0.5rem' }}>
+                              {outreach.outreach_type}
+                            </span>
+                            {new Date(outreach.outreach_date).toLocaleDateString()}
+                          </div>
+                          {outreach.subject && (
+                            <div style={{ marginTop: '0.5rem' }}>
+                              <strong>Subject:</strong> {outreach.subject}
+                            </div>
+                          )}
+                          {outreach.notes && (
+                            <div style={{ marginTop: '0.5rem', color: '#555' }}>
+                              {outreach.notes}
+                            </div>
+                          )}
+                          {outreach.outcome && (
+                            <div style={{ marginTop: '0.5rem' }}>
+                              <strong>Outcome:</strong> {outreach.outcome}
+                            </div>
+                          )}
+                        </div>
+                        <Link
+                          to={`/contacts/${outreach.contact_id}`}
+                          className="btn btn-small btn-primary"
+                          onClick={closeOutreachView}
+                        >
+                          View Contact
+                        </Link>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -5,6 +5,6 @@ echo ""
 echo "Frontend: http://localhost:3000"
 echo "Backend: http://localhost:3001"
 echo ""
-docker-compose up --build
+docker compose up --build -d
 
 # Made with Bob

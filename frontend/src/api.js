@@ -71,6 +71,7 @@ export const createCampaign = (data) => api.post('/campaigns', data);
 export const updateCampaign = (id, data) => api.put(`/campaigns/${id}`, data);
 export const deleteCampaign = (id) => api.delete(`/campaigns/${id}`);
 export const getOutreachCampaigns = (outreachId) => api.get(`/outreach/${outreachId}/campaigns`);
+export const getCampaignOutreach = (campaignId) => api.get(`/campaigns/${campaignId}/outreach`);
 
 export default api;
 
