@@ -2,6 +2,24 @@
 
 A full-stack web application for managing sales prospecting activities, tracking contacts, companies, relationships, and outreach history.
 
+## Quick Reference
+
+### Starting the Application
+- **Docker**: `docker-compose up -d`
+- **Windows (Local)**: Double-click `start.bat` or run it from command prompt
+- **Manual (Local)**: Start backend with `npm start` in `/backend`, then frontend with `npm run dev` in `/frontend`
+
+### Shutting Down the Application
+- **Docker**: `docker-compose down`
+- **Windows (start.bat)**: Close the Backend and Frontend command prompt windows
+- **Manual**: Press `Ctrl+C` in each terminal running the servers
+
+### Accessing the Application
+- **Frontend**: http://localhost:3000
+- **Backend API**: http://localhost:3001
+
+For detailed instructions, see the [Installation](#installation) and [Shutting Down the Application](#shutting-down-the-application) sections below.
+
 ## Features
 
 - **Company Management**: Track customer companies with industry, website, and notes
@@ -96,6 +114,12 @@ This command will:
 3. **Access the application**:
 - Frontend: `http://localhost:3000`
 - Backend API: `http://localhost:3001`
+
+4. **Shut down the application** (when finished):
+```bash
+docker-compose down
+```
+See the [Shutting Down the Application](#shutting-down-the-application) section for more details.
 
 ### Docker Commands
 
@@ -241,20 +265,40 @@ The `docker-compose down` command will:
 
 To properly shut down the local development servers:
 
+**Method 1: Using start.bat (Windows)**
+
+If you started the application using `start.bat`, two separate command prompt windows will be open:
+1. **Backend Server** window - Close this window or press `Ctrl+C` to stop the backend
+2. **Frontend Server** window - Close this window or press `Ctrl+C` to stop the frontend
+
+You can close both windows in any order. Each server will shut down gracefully.
+
+**Method 2: Manual Shutdown**
+
+If you started the servers manually in separate terminals:
+
 1. **Stop the Frontend Server**:
    - In the terminal running the frontend (Vite dev server), press `Ctrl+C`
-   - Confirm the shutdown if prompted
+   - Confirm the shutdown if prompted (type `Y` if asked)
 
 2. **Stop the Backend Server**:
    - In the terminal running the backend (Express server), press `Ctrl+C`
    - The server will gracefully shut down and close database connections
 
-**Note**: If you started both servers using the `start.bat` script, you can close the command prompt window or press `Ctrl+C` in the window to stop both servers simultaneously.
+**Method 3: Task Manager (Windows - Emergency Only)**
+
+If servers are unresponsive:
+1. Open Task Manager (`Ctrl+Shift+Esc`)
+2. Find `node.exe` processes
+3. Right-click and select "End Task"
+
+⚠️ **Warning**: This method should only be used as a last resort, as it may not close database connections cleanly.
 
 **Important**: Always shut down the servers properly to ensure:
 - Database connections are closed cleanly
 - No data corruption occurs
 - Ports 3000 and 3001 are released for future use
+- Any pending operations complete successfully
 
 ### API Endpoints
 
