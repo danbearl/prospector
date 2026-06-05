@@ -167,7 +167,7 @@ Edit `docker-compose.https.yml` and uncomment:
 
 **Check Traefik logs**:
 ```bash
-docker-compose -f docker-compose.https.yml logs traefik
+docker compose -f docker-compose.https.yml logs traefik
 ```
 
 **Common issues**:
@@ -185,7 +185,7 @@ This is normal during certificate issuance. HTTP is needed for the ACME challeng
 Traefik should auto-renew. If not:
 1. Check Traefik logs for errors
 2. Verify domain still points to server
-3. Restart Traefik: `docker-compose -f docker-compose.https.yml restart traefik`
+3. Restart Traefik: `docker compose -f docker-compose.https.yml restart traefik`
 
 ---
 
@@ -491,7 +491,7 @@ echo | openssl s_client -servername prospector.yourdomain.com -connect prospecto
 
 **Traefik logs**:
 ```bash
-docker-compose -f docker-compose.https.yml logs -f traefik
+docker compose -f docker-compose.https.yml logs -f traefik
 ```
 
 **Check for**:

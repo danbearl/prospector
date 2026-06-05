@@ -113,7 +113,7 @@ The following environment variable can be configured in `docker-compose.yml`:
 
 1. Start the application:
    ```bash
-   docker-compose up -d
+   docker compose up -d
    ```
 
 2. Navigate to `http://localhost:3000`
@@ -264,5 +264,5 @@ User data is stored in the SQLite database at `/app/data/prospector.db` inside t
 For issues or questions about the authentication system, please refer to this documentation or check the application logs:
 
 ```bash
-docker-compose logs backend
-docker-compose logs frontend
+docker compose logs backend
+docker compose logs frontend

@@ -75,7 +75,7 @@ chmod +x start-dev.sh start-prod.sh start.sh stop.sh
 ```bash
 start-dev.bat
 # OR
-docker-compose -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.dev.yml up --build
 ```
 
 **Benefits**:
@@ -119,9 +119,9 @@ docker-compose -f docker-compose.dev.yml up --build
 ```bash
 start-prod.bat
 # OR
-docker-compose -f docker-compose.prod.yml up --build
+docker compose -f docker-compose.prod.yml up --build
 # OR (uses default docker-compose.yml)
-docker-compose up --build
+docker compose up --build
 ```
 
 **Benefits**:
@@ -205,7 +205,7 @@ To customize environment variables for production:
    ```
 3. Rebuild and restart:
    ```bash
-   docker-compose -f docker-compose.prod.yml up --build
+   docker compose -f docker-compose.prod.yml up --build
    ```
 
 ## Volume Management
@@ -257,7 +257,7 @@ docker volume rm prospector_backend-data
 
 ### Changing Ports
 
-Edit the respective `docker-compose` file:
+Edit the respective `docker compose` file:
 
 ```yaml
 services:
@@ -278,54 +278,54 @@ services:
 
 **Build and start**:
 ```bash
-docker-compose -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.dev.yml up --build
 ```
 
 **Start without rebuilding**:
 ```bash
-docker-compose -f docker-compose.dev.yml up
+docker compose -f docker-compose.dev.yml up
 ```
 
 **Run in background**:
 ```bash
-docker-compose -f docker-compose.dev.yml up -d
+docker compose -f docker-compose.dev.yml up -d
 ```
 
 **View logs**:
 ```bash
-docker-compose -f docker-compose.dev.yml logs -f
+docker compose -f docker-compose.dev.yml logs -f
 ```
 
 **Stop**:
 ```bash
-docker-compose -f docker-compose.dev.yml down
+docker compose -f docker-compose.dev.yml down
 ```
 
 ### Production Mode
 
 **Build and start**:
 ```bash
-docker-compose -f docker-compose.prod.yml up --build
+docker compose -f docker-compose.prod.yml up --build
 ```
 
 **Start without rebuilding**:
 ```bash
-docker-compose -f docker-compose.prod.yml up
+docker compose -f docker-compose.prod.yml up
 ```
 
 **Run in background**:
 ```bash
-docker-compose -f docker-compose.prod.yml up -d
+docker compose -f docker-compose.prod.yml up -d
 ```
 
 **View logs**:
 ```bash
-docker-compose -f docker-compose.prod.yml logs -f
+docker compose -f docker-compose.prod.yml logs -f
 ```
 
 **Stop**:
 ```bash
-docker-compose -f docker-compose.prod.yml down
+docker compose -f docker-compose.prod.yml down
 ```
 
 ## Switching Between Modes
@@ -334,12 +334,12 @@ docker-compose -f docker-compose.prod.yml down
 
 1. Stop development containers:
    ```bash
-   docker-compose -f docker-compose.dev.yml down
+   docker compose -f docker-compose.dev.yml down
    ```
 
 2. Start production containers:
    ```bash
-   docker-compose -f docker-compose.prod.yml up --build
+   docker compose -f docker-compose.prod.yml up --build
    ```
 
 **Note**: Database persists across mode switches (same volume).
@@ -348,12 +348,12 @@ docker-compose -f docker-compose.prod.yml down
 
 1. Stop production containers:
    ```bash
-   docker-compose -f docker-compose.prod.yml down
+   docker compose -f docker-compose.prod.yml down
    ```
 
 2. Start development containers:
    ```bash
-   docker-compose -f docker-compose.dev.yml up --build
+   docker compose -f docker-compose.dev.yml up --build
    ```
 
 ## Troubleshooting
@@ -368,7 +368,7 @@ docker-compose -f docker-compose.prod.yml down
    ```bash
    netstat -ano | findstr :3000
    ```
-3. Kill the process or change the port in docker-compose file
+3. Kill the process or change the port in docker compose file
 
 ### Hot-Reloading Not Working (Development)
 
@@ -378,11 +378,11 @@ docker-compose -f docker-compose.prod.yml down
 1. Ensure you're using development mode: `start-dev.bat`
 2. Check that volumes are mounted correctly:
    ```bash
-   docker-compose -f docker-compose.dev.yml ps
+   docker compose -f docker-compose.dev.yml ps
    ```
 3. Restart containers:
    ```bash
-   docker-compose -f docker-compose.dev.yml restart
+   docker compose -f docker-compose.dev.yml restart
    ```
 
 ### Build Failures
@@ -392,7 +392,7 @@ docker-compose -f docker-compose.prod.yml down
 **Solutions**:
 1. Clear Docker cache:
    ```bash
-   docker-compose -f docker-compose.dev.yml build --no-cache
+   docker compose -f docker-compose.dev.yml build --no-cache
    ```
 2. Remove node_modules locally:
    ```bash
@@ -400,7 +400,7 @@ docker-compose -f docker-compose.prod.yml down
    ```
 3. Rebuild:
    ```bash
-   docker-compose -f docker-compose.dev.yml up --build
+   docker compose -f docker-compose.dev.yml up --build
    ```
 
 ### Database Issues
@@ -418,9 +418,9 @@ docker-compose -f docker-compose.prod.yml down
    ```
 3. Reset database (WARNING: deletes all data):
    ```bash
-   docker-compose down
+   docker compose down
    docker volume rm prospector_backend-data
-   docker-compose up --build
+   docker compose up --build
    ```
 
 ## Production Deployment Checklist
@@ -505,24 +505,24 @@ Already optimized with:
 
 **All services**:
 ```bash
-docker-compose logs -f
+docker compose logs -f
 ```
 
 **Specific service**:
 ```bash
-docker-compose logs -f backend
-docker-compose logs -f frontend
+docker compose logs -f backend
+docker compose logs -f frontend
 ```
 
 **Last N lines**:
 ```bash
-docker-compose logs --tail=100 backend
+docker compose logs --tail=100 backend
 ```
 
 ### Log to File
 
 ```bash
-docker-compose logs > logs.txt
+docker compose logs > logs.txt
 ```
 
 ### Production Logging
@@ -554,7 +554,7 @@ echo Backup created: prospector-%TIMESTAMP%.db
 
 ```bash
 docker cp ./backup.db prospector-backend:/app/data/prospector.db
-docker-compose restart backend
+docker compose restart backend
 ```
 
 ## Support

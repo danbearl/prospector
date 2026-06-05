@@ -207,7 +207,7 @@ No frontend changes were required! The frontend continues to work exactly as bef
 ### Admin password not working
 - The password is randomly generated each time the database is initialized
 - If you lost the password, you need to reset the database
-- Solution: Check `docker-compose logs backend` for the password
+- Solution: Check `docker compose logs backend` for the password
 
 ## Future Enhancements
 
@@ -235,7 +235,7 @@ Potential improvements for multi-user access control:
 ## Support
 
 For issues related to multi-user access control:
-1. Check the backend logs: `docker-compose logs backend`
+1. Check the backend logs: `docker compose logs backend`
 2. Verify you're logged in with the correct user
 3. Ensure the database migration completed successfully
 4. Check that user_id columns exist in all tables

@@ -278,7 +278,7 @@ Potential improvements for user profile management:
 ### Profile changes not reflected
 - Refresh the page to see updated information
 - Check browser console for any errors
-- Verify the backend is running: `docker-compose logs backend`
+- Verify the backend is running: `docker compose logs backend`
 
 ## Testing
 
@@ -317,7 +317,7 @@ Potential improvements for user profile management:
 
 For issues with user profile management:
 1. Check this documentation for solutions
-2. Review backend logs: `docker-compose logs backend`
+2. Review backend logs: `docker compose logs backend`
 3. Check browser console for frontend errors
 4. Ensure you're using the correct password
 5. Verify the database is accessible and not corrupted

@@ -5,12 +5,12 @@ A full-stack web application for managing sales prospecting activities, tracking
 ## Quick Reference
 
 ### Starting the Application
-- **Production**: `docker-compose up -d` or use `start.sh` (Linux/Mac) / `start-prod.bat` (Windows)
-- **Development**: `docker-compose -f docker-compose.dev.yml up -d` or use `start-dev.sh` (Linux/Mac) / `start-dev.bat` (Windows)
-- **HTTPS**: `docker-compose -f docker-compose.https.yml up -d` or use `start-https.sh` (Linux/Mac) / `start-https.bat` (Windows)
+- **Production**: `docker compose up -d` or use `start.sh` (Linux/Mac) / `start-prod.bat` (Windows)
+- **Development**: `docker compose -f docker-compose.dev.yml up -d` or use `start-dev.sh` (Linux/Mac) / `start-dev.bat` (Windows)
+- **HTTPS**: `docker compose -f docker-compose.https.yml up -d` or use `start-https.sh` (Linux/Mac) / `start-https.bat` (Windows)
 
 ### Shutting Down the Application
-- **Docker**: `docker-compose down`
+- **Docker**: `docker compose down`
 - **Using Scripts**: Use `stop.sh` (Linux/Mac) / `stop.bat` (Windows)
 
 ### Accessing the Application
@@ -100,7 +100,7 @@ cd prospector
 
 2. **Start the application**:
 ```bash
-docker-compose up -d
+docker compose up -d
 ```
 
 This command will:
@@ -115,7 +115,7 @@ This command will:
 
 4. **Shut down the application** (when finished):
 ```bash
-docker-compose down
+docker compose down
 ```
 See the [Shutting Down the Application](#shutting-down-the-application) section for more details.
 
@@ -123,43 +123,43 @@ See the [Shutting Down the Application](#shutting-down-the-application) section 
 
 **View running containers**:
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 **View logs**:
 ```bash
 # All services
-docker-compose logs -f
+docker compose logs -f
 
 # Specific service
-docker-compose logs -f backend
-docker-compose logs -f frontend
+docker compose logs -f backend
+docker compose logs -f frontend
 ```
 
 **Stop the application**:
 ```bash
-docker-compose down
+docker compose down
 ```
 
 **Stop and remove volumes** (⚠️ This will delete all data):
 ```bash
-docker-compose down -v
+docker compose down -v
 ```
 
 **Rebuild containers** (after code changes):
 ```bash
-docker-compose up -d --build
+docker compose up -d --build
 ```
 
 **Restart a specific service**:
 ```bash
-docker-compose restart backend
-docker-compose restart frontend
+docker compose restart backend
+docker compose restart frontend
 ```
 
 ### Docker Data Persistence
 
-The database is stored in a Docker volume named `backend-data`, which persists even when containers are stopped or removed. Your data will remain intact unless you explicitly remove the volume with `docker-compose down -v`.
+The database is stored in a Docker volume named `backend-data`, which persists even when containers are stopped or removed. Your data will remain intact unless you explicitly remove the volume with `docker compose down -v`.
 
 ### Docker Troubleshooting
 
@@ -172,13 +172,13 @@ ports:
 
 **View container health**:
 ```bash
-docker-compose ps
+docker compose ps
 ```
 
 **Access container shell**:
 ```bash
-docker-compose exec backend sh
-docker-compose exec frontend sh
+docker compose exec backend sh
+docker compose exec frontend sh
 ```
 
 ## Development Mode
@@ -197,7 +197,7 @@ start-dev.bat
 
 Or directly:
 ```bash
-docker-compose -f docker-compose.dev.yml up --build
+docker compose -f docker-compose.dev.yml up --build
 ```
 
 This provides:
@@ -227,13 +227,13 @@ To stop the Docker containers:
 **Or directly**:
 ```bash
 # Stop containers (keeps data)
-docker-compose down
+docker compose down
 
 # Stop containers and remove volumes (⚠️ deletes all data)
-docker-compose down -v
+docker compose down -v
 ```
 
-The `docker-compose down` command will:
+The `docker compose down` command will:
 - Gracefully stop all containers
 - Close database connections properly
 - Remove containers and networks
