@@ -12,6 +12,7 @@ services:
       - NODE_ENV=production
       - PORT=3001
       - JWT_SECRET=change-this-secret-in-production-use-long-random-string
+      - SUPER_ADMIN_KEY=${SUPER_ADMIN_KEY}
     volumes:
       - backend-data:/app/data
     networks:
