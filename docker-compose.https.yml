@@ -47,18 +47,21 @@ services:
     environment:
       - NODE_ENV=production
       - PORT=3001
-      - JWT_SECRET=${JWT_SECRET:-change-this-secret-in-production-use-long-random-string}
+      - JWT_SECRET=${JWT_SECRET}
+      - SUPER_ADMIN_KEY=${SUPER_ADMIN_KEY}
+    ports:
+      - "3001:3001" #exposed directly on host
     volumes:
       - backend-data:/app/data
     networks:
       - prospector-network
     restart: unless-stopped
-    labels:
-      - "traefik.enable=true"
-      - "traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
-      - "traefik.http.routers.backend.entrypoints=websecure"
-      - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
-      - "traefik.http.services.backend.loadbalancer.server.port=3001"
+    #labels:
+    #  - "traefik.enable=true"
+    #  - "traefik.http.routers.backend.rule=Host(`${DOMAIN}`) && PathPrefix(`/api`)"
+    #  - "traefik.http.routers.backend.entrypoints=websecure"
+    #  - "traefik.http.routers.backend.tls.certresolver=letsencrypt"
+    #  - "traefik.http.services.backend.loadbalancer.server.port=3001"
 
   frontend:
     build:
