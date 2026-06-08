@@ -2,7 +2,7 @@ const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
 const db = require('./database');
-const { register, login, verifyToken } = require('./auth');
+const { register, login, verifyToken, verifyAdmin } = require('./auth');
 
 const app = express();
 const PORT = process.env.PORT || 3001;
@@ -87,14 +87,28 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // Verify token (check if user is authenticated)
-app.get('/api/auth/verify', verifyToken, (req, res) => {
-  res.json({
-    success: true,
-    user: {
-      id: req.userId,
-      username: req.username
+app.get('/api/auth/verify', verifyToken, async (req, res) => {
+  try {
+    // Get user details including is_admin
+    const user = await dbGet(
+      'SELECT id, username, email, is_admin FROM users WHERE id = ?',
+      [req.userId]
+    );
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
     }
-  });
+    res.json({
+      success: true,
+      user: {
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        isAdmin: user.is_admin === 1
+      }
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // Logout (client-side token removal, but endpoint for consistency)
@@ -222,6 +236,225 @@ app.delete('/api/auth/account', verifyToken, async (req, res) => {
     await dbRun('DELETE FROM users WHERE id = ?', [req.userId]);
 
     res.json({ success: true, message: 'Account deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// ==================== ADMIN ROUTES ====================
+
+// Promote user to admin (admin only)
+app.post('/api/admin/promote-user', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+    
+    // Verify user exists
+    const user = await dbGet('SELECT id, username, is_admin FROM users WHERE id = ?', [userId]);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (user.is_admin === 1) {
+      return res.status(400).json({ error: 'User is already an admin' });
+    }
+    
+    // Promote user to admin
+    await dbRun('UPDATE users SET is_admin = 1 WHERE id = ?', [userId]);
+    
+    console.log(`Admin promotion: User ${user.username} (ID: ${userId}) promoted to admin by ${req.username} (ID: ${req.userId})`);
+    
+    res.json({
+      success: true,
+      message: `User ${user.username} has been promoted to admin`
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Demote user from admin (admin only)
+app.post('/api/admin/demote-user', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ error: 'User ID is required' });
+    }
+    
+    // Prevent demoting yourself
+    if (userId === req.userId) {
+      return res.status(400).json({ error: 'You cannot demote yourself' });
+    }
+    
+    // Verify user exists
+    const user = await dbGet('SELECT id, username, is_admin FROM users WHERE id = ?', [userId]);
+    
+    if (!user) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (user.is_admin !== 1) {
+      return res.status(400).json({ error: 'User is not an admin' });
+    }
+    
+    // Check if this is the last admin
+    const adminCount = await dbGet('SELECT COUNT(*) as count FROM users WHERE is_admin = 1');
+    if (adminCount.count <= 1) {
+      return res.status(400).json({ error: 'Cannot demote the last admin. Promote another user first.' });
+    }
+    
+    // Demote user from admin
+    await dbRun('UPDATE users SET is_admin = 0 WHERE id = ?', [userId]);
+    
+    console.log(`Admin demotion: User ${user.username} (ID: ${userId}) demoted from admin by ${req.username} (ID: ${req.userId})`);
+    
+    res.json({
+      success: true,
+      message: `User ${user.username} has been demoted from admin`
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Emergency admin promotion (requires super admin key, NO admin auth required)
+// This endpoint can be used even when no admins exist in the system
+app.post('/api/admin/emergency-promote', async (req, res) => {
+  try {
+    const { username, superAdminKey } = req.body;
+    
+    if (!username || !superAdminKey) {
+      return res.status(400).json({ error: 'Username and super admin key are required' });
+    }
+    
+    // Verify super admin key
+    const expectedKey = process.env.SUPER_ADMIN_KEY;
+    if (!expectedKey) {
+      return res.status(500).json({ error: 'Super admin key not configured on server' });
+    }
+    
+    if (superAdminKey !== expectedKey) {
+      console.warn(`⚠️  FAILED EMERGENCY PROMOTION ATTEMPT for username: ${username} - Invalid super admin key`);
+      return res.status(403).json({ error: 'Invalid super admin key' });
+    }
+    
+    // Verify user exists
+    const user = await dbGet('SELECT id, username, is_admin FROM users WHERE username = ?', [username]);
+    
+    if (!user) {
+      console.warn(`⚠️  FAILED EMERGENCY PROMOTION ATTEMPT - User not found: ${username}`);
+      return res.status(404).json({ error: 'User not found' });
+    }
+    
+    if (user.is_admin === 1) {
+      return res.status(400).json({ error: 'User is already an admin' });
+    }
+    
+    // Promote user to admin
+    await dbRun('UPDATE users SET is_admin = 1 WHERE id = ?', [user.id]);
+    
+    console.log(`🚨 EMERGENCY PROMOTION: User ${user.username} (ID: ${user.id}) promoted to admin using super admin key`);
+    
+    res.json({
+      success: true,
+      message: `User ${user.username} has been promoted to admin via emergency procedure`
+    });
+  } catch (err) {
+    console.error('Emergency promotion error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Get all users with statistics (admin only)
+app.get('/api/admin/users', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const users = await dbAll(
+      'SELECT id, username, email, is_admin, created_at FROM users ORDER BY created_at DESC'
+    );
+    
+    // Get statistics for each user
+    for (let i = 0; i < users.length; i++) {
+      const userId = users[i].id;
+      
+      // Count companies
+      const companyCount = await dbGet(
+        'SELECT COUNT(*) as count FROM companies WHERE user_id = ?',
+        [userId]
+      );
+      
+      // Count contacts
+      const contactCount = await dbGet(
+        'SELECT COUNT(*) as count FROM contacts WHERE user_id = ?',
+        [userId]
+      );
+      
+      // Count outreach
+      const outreachCount = await dbGet(
+        'SELECT COUNT(*) as count FROM outreach_history WHERE user_id = ?',
+        [userId]
+      );
+      
+      // Count campaigns
+      const campaignCount = await dbGet(
+        'SELECT COUNT(*) as count FROM campaigns WHERE user_id = ?',
+        [userId]
+      );
+      
+      users[i].stats = {
+        companies: companyCount.count,
+        contacts: contactCount.count,
+        outreach: outreachCount.count,
+        campaigns: campaignCount.count
+      };
+    }
+    
+    res.json(users);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Reassign user data (admin only)
+app.post('/api/admin/reassign-user-data', verifyToken, verifyAdmin, async (req, res) => {
+  try {
+    const { fromUserId, toUserId } = req.body;
+    
+    if (!fromUserId || !toUserId) {
+      return res.status(400).json({ error: 'Both fromUserId and toUserId are required' });
+    }
+    
+    if (fromUserId === toUserId) {
+      return res.status(400).json({ error: 'Cannot reassign to the same user' });
+    }
+    
+    // Verify both users exist
+    const fromUser = await dbGet('SELECT id, username FROM users WHERE id = ?', [fromUserId]);
+    const toUser = await dbGet('SELECT id, username FROM users WHERE id = ?', [toUserId]);
+    
+    if (!fromUser) {
+      return res.status(404).json({ error: 'Source user not found' });
+    }
+    
+    if (!toUser) {
+      return res.status(404).json({ error: 'Target user not found' });
+    }
+    
+    // Reassign all data
+    await dbRun('UPDATE companies SET user_id = ? WHERE user_id = ?', [toUserId, fromUserId]);
+    await dbRun('UPDATE contacts SET user_id = ? WHERE user_id = ?', [toUserId, fromUserId]);
+    await dbRun('UPDATE contact_relationships SET user_id = ? WHERE user_id = ?', [toUserId, fromUserId]);
+    await dbRun('UPDATE outreach_history SET user_id = ? WHERE user_id = ?', [toUserId, fromUserId]);
+    await dbRun('UPDATE campaigns SET user_id = ? WHERE user_id = ?', [toUserId, fromUserId]);
+    
+    res.json({
+      success: true,
+      message: `Successfully reassigned all data from ${fromUser.username} to ${toUser.username}`
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }

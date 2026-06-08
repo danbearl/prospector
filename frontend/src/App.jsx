@@ -9,6 +9,7 @@ import Dashboard from './components/Dashboard';
 import Login from './components/Login';
 import Register from './components/Register';
 import UserProfile from './components/UserProfile';
+import AdminUsers from './components/AdminUsers';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function AppContent() {
@@ -45,6 +46,9 @@ function AppContent() {
             <NavLink to="/contacts">Contacts</NavLink>
             <NavLink to="/outreach">Outreach History</NavLink>
             <NavLink to="/campaigns">Campaigns</NavLink>
+            {user.isAdmin && (
+              <NavLink to="/admin/users">👑 Admin</NavLink>
+            )}
           </nav>
           <div style={{ marginLeft: 'auto', display: 'flex', alignItems: 'center', gap: '1rem' }}>
             <NavLink
@@ -133,6 +137,14 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <UserProfile />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/admin/users"
+          element={
+            <ProtectedRoute>
+              <AdminUsers />
             </ProtectedRoute>
           }
         />

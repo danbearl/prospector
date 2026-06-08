@@ -21,9 +21,29 @@ db.serialize(() => {
       username TEXT UNIQUE NOT NULL,
       password TEXT NOT NULL,
       email TEXT,
+      is_admin INTEGER DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+
+  // Add is_admin column if it doesn't exist (migration)
+  db.all(`PRAGMA table_info(users)`, (err, columns) => {
+    if (!err && columns) {
+      const hasIsAdmin = columns.some(col => col.name === 'is_admin');
+      
+      if (!hasIsAdmin) {
+        db.run(`ALTER TABLE users ADD COLUMN is_admin INTEGER DEFAULT 0`, (err) => {
+          if (!err) {
+            console.log('Added is_admin column to users table');
+            // Set Admin user as admin
+            db.run(`UPDATE users SET is_admin = 1 WHERE username = 'Admin'`, (err) => {
+              if (!err) console.log('Set Admin user as admin');
+            });
+          }
+        });
+      }
+    }
+  });
 
   // Companies table
   db.run(`
@@ -224,8 +244,8 @@ db.serialize(() => {
       bcrypt.hash(tempPassword, 10, (err, hashedPassword) => {
         if (!err) {
           db.run(
-            `INSERT INTO users (username, password, email) VALUES (?, ?, ?)`,
-            ['Admin', hashedPassword, 'admin@prospector.local'],
+            `INSERT INTO users (username, password, email,is_admin) VALUES (?, ?, ?, ?)`,
+            ['Admin', hashedPassword, 'admin@prospector.local', 1],
             function(err) {
               if (!err) {
                 const adminUserId = this.lastID;

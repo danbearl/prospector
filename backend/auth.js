@@ -37,14 +37,17 @@ async function register(db, username, password, email = null) {
     const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
 
     // Insert user
-    const result = await dbRun(db, 
+    const result = await dbRun(db,
       'INSERT INTO users (username, password, email) VALUES (?, ?, ?)',
       [username, hashedPassword, email]
     );
 
+    // Get the created user with is_admin field
+    const user = await dbGet(db, 'SELECT id, username, email, is_admin FROM users WHERE id = ?', [result.lastID]);
+
     // Generate JWT token
     const token = jwt.sign(
-      { userId: result.lastID, username },
+      { userId: user.id, username: user.username, isAdmin: user.is_admin === 1 },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -53,9 +56,10 @@ async function register(db, username, password, email = null) {
       success: true,
       token,
       user: {
-        id: result.lastID,
-        username,
-        email
+        id: user.id,
+        username: user.username,
+        email: user.email,
+        isAdmin: user.is_admin === 1
       }
     };
   } catch (error) {
@@ -80,7 +84,7 @@ async function login(db, username, password) {
 
     // Generate JWT token
     const token = jwt.sign(
-      { userId: user.id, username: user.username },
+      { userId: user.id, username: user.username, isAdmin: user.is_admin === 1 },
       JWT_SECRET,
       { expiresIn: '7d' }
     );
@@ -91,7 +95,8 @@ async function login(db, username, password) {
       user: {
         id: user.id,
         username: user.username,
-        email: user.email
+        email: user.email,
+        isAdmin: user.is_admin === 1
       }
     };
   } catch (error) {
@@ -111,6 +116,7 @@ function verifyToken(req, res, next) {
     const decoded = jwt.verify(token, JWT_SECRET);
     req.userId = decoded.userId;
     req.username = decoded.username;
+    req.isAdmin = decoded.isAdmin || false;
     next();
   } catch (error) {
     return res.status(401).json({ error: 'Invalid or expired token' });
@@ -126,9 +132,18 @@ function verifyTokenOptional(req, res, next) {
       const decoded = jwt.verify(token, JWT_SECRET);
       req.userId = decoded.userId;
       req.username = decoded.username;
+      req.isAdmin = decoded.isAdmin || false;
     } catch (error) {
       // Token invalid, but continue anyway
     }
+  }
+  next();
+}
+
+// Verify admin role middleware
+function verifyAdmin(req, res, next) {
+  if (!req.isAdmin) {
+    return res.status(403).json({ error: 'Access denied. Admin privileges required.' });
   }
   next();
 }
@@ -138,6 +153,7 @@ module.exports = {
   login,
   verifyToken,
   verifyTokenOptional,
+  verifyAdmin,
   JWT_SECRET
 };
 
