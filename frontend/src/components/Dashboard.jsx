@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getCompanies, getContacts, getAllOutreach, getCampaigns } from '../api';
+import LogOutreachModal from './LogOutreachModal';
 
 function Dashboard() {
   const [stats, setStats] = useState({
@@ -11,6 +12,7 @@ function Dashboard() {
     recentOutreach: []
   });
   const [loading, setLoading] = useState(true);
+  const [showLogOutreachModal, setShowLogOutreachModal] = useState(false);
 
   useEffect(() => {
     loadDashboardData();
@@ -83,6 +85,13 @@ function Dashboard() {
         <div className="card">
           <h3 className="card-title">🎯 Quick Actions</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
+            <button
+              onClick={() => setShowLogOutreachModal(true)}
+              className="btn btn-primary"
+              style={{ textAlign: 'center' }}
+            >
+              ✉️ Log Outreach
+            </button>
             <Link to="/companies" className="btn btn-primary">Manage Companies</Link>
             <Link to="/contacts" className="btn btn-success">Manage Contacts</Link>
             <Link to="/campaigns" className="btn btn-info">Manage Campaigns</Link>
@@ -118,6 +127,12 @@ function Dashboard() {
           </div>
         )}
       </div>
+
+      <LogOutreachModal
+        isOpen={showLogOutreachModal}
+        onClose={() => setShowLogOutreachModal(false)}
+        onSuccess={loadDashboardData}
+      />
     </div>
   );
 }
