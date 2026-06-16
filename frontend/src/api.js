@@ -59,6 +59,7 @@ export const deleteContactRelationship = (id) => api.delete(`/relationships/${id
 
 // Outreach History
 export const getAllOutreach = () => api.get('/outreach');
+export const getDashboardFollowUps = () => api.get('/dashboard/follow-ups');
 export const getContactOutreach = (contactId) => api.get(`/contacts/${contactId}/outreach`);
 export const createOutreach = (contactId, data) => api.post(`/contacts/${contactId}/outreach`, data);
 export const updateOutreach = (id, data) => api.put(`/outreach/${id}`, data);
