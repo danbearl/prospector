@@ -834,6 +834,48 @@ app.get('/api/outreach', verifyToken, async (req, res) => {
   }
 });
 
+// Get dashboard follow-up feed (filtered by user)
+app.get('/api/dashboard/follow-ups', verifyToken, async (req, res) => {
+  try {
+    const followUps = await dbAll(`
+      SELECT oh.id,
+             oh.contact_id,
+             oh.outreach_type,
+             oh.outreach_date,
+             oh.subject,
+             oh.outcome,
+             oh.follow_up_date,
+             c.first_name,
+             c.last_name,
+             co.name as company_name
+      FROM outreach_history oh
+      JOIN contacts c ON oh.contact_id = c.id
+      LEFT JOIN companies co ON c.company_id = co.id
+      WHERE oh.user_id = ?
+        AND oh.follow_up_date IS NOT NULL
+      ORDER BY oh.follow_up_date ASC, oh.outreach_date DESC
+    `, [req.userId]);
+
+    const today = new Date().toISOString().split('T')[0];
+    const upcoming = [];
+    const pastDue = [];
+
+    followUps.forEach((followUp) => {
+      const followUpDate = String(followUp.follow_up_date).split('T')[0];
+
+      if (followUpDate < today) {
+        pastDue.push(followUp);
+      } else {
+        upcoming.push(followUp);
+      }
+    });
+
+    res.json({ upcoming, pastDue });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Create outreach record (with user_id and campaign assignments)
 app.post('/api/contacts/:id/outreach', verifyToken, async (req, res) => {
   try {
