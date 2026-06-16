@@ -28,6 +28,11 @@ echo "- Backend API: https://${DOMAIN}/api"
 echo "- Traefik Dashboard: http://localhost:8080"
 echo ""
 
-docker compose -f docker-compose.https.yml up --build -d
+if [ "$1" == "-a" ]; then
+    docker compose -f docker-compose.https.yml up --build
+else
+    docker compose -f docker-compose.https.yml up --build -d
+fi
+
 
 # Made with Bob
