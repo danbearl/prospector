@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getCompanies, getContacts, getAllOutreach, getCampaigns, getDashboardFollowUps } from '../api';
+import { getCompanies, getContacts, getAllOutreach, getCampaigns, getDashboardFollowUps, closeOutreachFollowUp } from '../api';
 import LogOutreachModal from './LogOutreachModal';
 
 function Dashboard() {
@@ -15,6 +15,8 @@ function Dashboard() {
   });
   const [loading, setLoading] = useState(true);
   const [showLogOutreachModal, setShowLogOutreachModal] = useState(false);
+  const [selectedFollowUp, setSelectedFollowUp] = useState(null);
+  const [closingFollowUpId, setClosingFollowUpId] = useState(null);
 
   useEffect(() => {
     loadDashboardData();
@@ -43,6 +45,34 @@ function Dashboard() {
       console.error('Error loading dashboard data:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleOpenGeneralOutreachModal = () => {
+    setSelectedFollowUp(null);
+    setShowLogOutreachModal(true);
+  };
+
+  const handleOpenFollowUpOutreachModal = (followUp) => {
+    setSelectedFollowUp(followUp);
+    setShowLogOutreachModal(true);
+  };
+
+  const handleCloseOutreachModal = () => {
+    setShowLogOutreachModal(false);
+    setSelectedFollowUp(null);
+  };
+
+  const handleCloseFollowUp = async (followUpId) => {
+    try {
+      setClosingFollowUpId(followUpId);
+      await closeOutreachFollowUp(followUpId);
+      await loadDashboardData();
+    } catch (error) {
+      console.error('Error closing follow-up:', error);
+      alert('Failed to close follow-up');
+    } finally {
+      setClosingFollowUpId(null);
     }
   };
 
@@ -91,7 +121,7 @@ function Dashboard() {
           <h3 className="card-title">🎯 Quick Actions</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem', marginTop: '1rem' }}>
             <button
-              onClick={() => setShowLogOutreachModal(true)}
+              onClick={handleOpenGeneralOutreachModal}
               className="btn btn-primary"
               style={{ textAlign: 'center' }}
             >
@@ -129,9 +159,26 @@ function Dashboard() {
                         </div>
                       )}
                     </div>
-                    <Link to={`/contacts/${followUp.contact_id}`} className="btn btn-small btn-primary">
-                      View Contact
-                    </Link>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        className="btn btn-small btn-primary"
+                        onClick={() => handleOpenFollowUpOutreachModal(followUp)}
+                      >
+                        Log Outreach
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-small btn-secondary"
+                        onClick={() => handleCloseFollowUp(followUp.id)}
+                        disabled={closingFollowUpId === followUp.id}
+                      >
+                        {closingFollowUpId === followUp.id ? 'Closing...' : 'Close Follow-Up'}
+                      </button>
+                      <Link to={`/contacts/${followUp.contact_id}`} className="btn btn-small btn-info">
+                        View Contact
+                      </Link>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -162,9 +209,26 @@ function Dashboard() {
                         </div>
                       )}
                     </div>
-                    <Link to={`/contacts/${followUp.contact_id}`} className="btn btn-small btn-primary">
-                      View Contact
-                    </Link>
+                    <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                      <button
+                        type="button"
+                        className="btn btn-small btn-primary"
+                        onClick={() => handleOpenFollowUpOutreachModal(followUp)}
+                      >
+                        Log Outreach
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-small btn-secondary"
+                        onClick={() => handleCloseFollowUp(followUp.id)}
+                        disabled={closingFollowUpId === followUp.id}
+                      >
+                        {closingFollowUpId === followUp.id ? 'Closing...' : 'Close Follow-Up'}
+                      </button>
+                      <Link to={`/contacts/${followUp.contact_id}`} className="btn btn-small btn-info">
+                        View Contact
+                      </Link>
+                    </div>
                   </div>
                 </div>
               ))}
@@ -203,8 +267,10 @@ function Dashboard() {
 
       <LogOutreachModal
         isOpen={showLogOutreachModal}
-        onClose={() => setShowLogOutreachModal(false)}
+        onClose={handleCloseOutreachModal}
         onSuccess={loadDashboardData}
+        initialContactId={selectedFollowUp?.contact_id || ''}
+        completedFollowUpId={selectedFollowUp?.id || null}
       />
     </div>
   );

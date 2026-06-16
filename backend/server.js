@@ -876,6 +876,25 @@ app.get('/api/dashboard/follow-ups', verifyToken, async (req, res) => {
   }
 });
 
+// Close a follow-up without deleting outreach history
+app.put('/api/outreach/:id/close-follow-up', verifyToken, async (req, res) => {
+  try {
+    await dbRun(
+      'UPDATE outreach_history SET follow_up_date = NULL, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+      [req.params.id, req.userId]
+    );
+
+    const outreach = await dbGet('SELECT * FROM outreach_history WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
+    if (!outreach) {
+      return res.status(404).json({ error: 'Outreach record not found' });
+    }
+
+    res.json({ success: true, outreach });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Create outreach record (with user_id and campaign assignments)
 app.post('/api/contacts/:id/outreach', verifyToken, async (req, res) => {
   try {

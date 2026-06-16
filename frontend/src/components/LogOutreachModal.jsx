@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { getContacts, getCampaigns, createOutreach } from '../api';
+import { getContacts, getCampaigns, createOutreach, closeOutreachFollowUp } from '../api';
 
-function LogOutreachModal({ isOpen, onClose, onSuccess }) {
+function LogOutreachModal({ isOpen, onClose, onSuccess, initialContactId = '', completedFollowUpId = null }) {
   const [contacts, setContacts] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -25,6 +25,15 @@ function LogOutreachModal({ isOpen, onClose, onSuccess }) {
       loadData();
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      setFormData(prev => ({
+        ...prev,
+        contact_id: initialContactId ? String(initialContactId) : prev.contact_id
+      }));
+    }
+  }, [isOpen, initialContactId]);
 
   const loadData = async () => {
     try {
@@ -63,6 +72,10 @@ function LogOutreachModal({ isOpen, onClose, onSuccess }) {
         campaign_ids: formData.campaign_ids,
         new_campaign: showNewCampaignForm ? formData.new_campaign : null
       });
+
+      if (completedFollowUpId) {
+        await closeOutreachFollowUp(completedFollowUpId);
+      }
       
       // Reset form
       setFormData({
@@ -103,7 +116,7 @@ function LogOutreachModal({ isOpen, onClose, onSuccess }) {
     <div className="modal-overlay" onClick={onClose}>
       <div className="modal" onClick={(e) => e.stopPropagation()}>
         <div className="modal-header">
-          <h2 className="modal-title">Log Outreach</h2>
+          <h2 className="modal-title">{completedFollowUpId ? 'Complete Follow-Up with Outreach' : 'Log Outreach'}</h2>
           <button className="close-btn" onClick={onClose}>&times;</button>
         </div>
         
@@ -117,6 +130,7 @@ function LogOutreachModal({ isOpen, onClose, onSuccess }) {
                 value={formData.contact_id}
                 onChange={(e) => setFormData({ ...formData, contact_id: e.target.value })}
                 required
+                disabled={Boolean(initialContactId)}
               >
                 <option value="">Select a contact</option>
                 {contacts.map(contact => (
