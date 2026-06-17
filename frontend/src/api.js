@@ -37,6 +37,12 @@ api.interceptors.response.use(
   }
 );
 
+// Tags
+export const getTags = () => api.get('/tags');
+export const createTag = (data) => api.post('/tags', data);
+export const updateTag = (id, data) => api.put(`/tags/${id}`, data);
+export const deleteTag = (id) => api.delete(`/tags/${id}`);
+
 // Companies
 export const getCompanies = () => api.get('/companies');
 export const getCompany = (id) => api.get(`/companies/${id}`);
@@ -45,7 +51,7 @@ export const updateCompany = (id, data) => api.put(`/companies/${id}`, data);
 export const deleteCompany = (id) => api.delete(`/companies/${id}`);
 
 // Contacts
-export const getContacts = () => api.get('/contacts');
+export const getContacts = (params = {}) => api.get('/contacts', { params });
 export const getContact = (id) => api.get(`/contacts/${id}`);
 export const getContactsByCompany = (companyId) => api.get(`/companies/${companyId}/contacts`);
 export const createContact = (data) => api.post('/contacts', data);

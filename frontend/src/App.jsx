@@ -10,6 +10,7 @@ import Login from './components/Login';
 import Register from './components/Register';
 import UserProfile from './components/UserProfile';
 import AdminUsers from './components/AdminUsers';
+import Tags from './components/Tags';
 import ProtectedRoute from './components/ProtectedRoute';
 
 function AppContent() {
@@ -44,6 +45,7 @@ function AppContent() {
             <NavLink to="/" end>Dashboard</NavLink>
             <NavLink to="/companies">Companies</NavLink>
             <NavLink to="/contacts">Contacts</NavLink>
+            <NavLink to="/tags">Tags</NavLink>
             <NavLink to="/outreach">Outreach History</NavLink>
             <NavLink to="/campaigns">Campaigns</NavLink>
             {user.isAdmin && (
@@ -113,6 +115,14 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <ContactDetail />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/tags"
+          element={
+            <ProtectedRoute>
+              <Tags />
             </ProtectedRoute>
           }
         />

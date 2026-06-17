@@ -235,6 +235,58 @@ db.serialize(() => {
     )
   `);
 
+  // Tags table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      name TEXT NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE(user_id, name)
+    )
+  `);
+
+  // Add user_id column to tags if it doesn't exist (migration)
+  db.all(`PRAGMA table_info(tags)`, (err, columns) => {
+    if (!err && columns) {
+      const hasUserId = columns.some(col => col.name === 'user_id');
+
+      if (!hasUserId) {
+        db.run(`ALTER TABLE tags ADD COLUMN user_id INTEGER`, (err) => {
+          if (!err) console.log('Added user_id column to tags table');
+        });
+      }
+    }
+  });
+
+  // Company-Tags junction table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS company_tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      company_id INTEGER NOT NULL,
+      tag_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (company_id) REFERENCES companies(id) ON DELETE CASCADE,
+      FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+      UNIQUE(company_id, tag_id)
+    )
+  `);
+
+  // Contact-Tags junction table
+  db.run(`
+    CREATE TABLE IF NOT EXISTS contact_tags (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      contact_id INTEGER NOT NULL,
+      tag_id INTEGER NOT NULL,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (contact_id) REFERENCES contacts(id) ON DELETE CASCADE,
+      FOREIGN KEY (tag_id) REFERENCES tags(id) ON DELETE CASCADE,
+      UNIQUE(contact_id, tag_id)
+    )
+  `);
+
   // Create Admin user and assign existing records
   const bcrypt = require('bcrypt');
   const tempPassword = 'Admin' + Math.random().toString(36).substring(2, 10) + '!';

@@ -242,6 +242,18 @@ function ContactDetail() {
             </div>
           )}
         </div>
+
+        {contact.tags?.length > 0 && (
+          <div style={{ marginTop: '1rem' }}>
+            <div className="info-label">Tags</div>
+            <div className="tag-chip-list" style={{ marginTop: '0.5rem' }}>
+              {contact.tags.map((tag) => (
+                <span key={tag.id} className="tag-chip">{tag.name}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
         {contact.notes && (
           <div style={{ marginTop: '1rem', padding: '1rem', backgroundColor: '#f8f9fa', borderRadius: '4px' }}>
             <div className="info-label">Notes</div>

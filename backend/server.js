@@ -40,6 +40,88 @@ const dbAll = (sql, params = []) => {
   });
 };
 
+const normalizeTagName = (name = '') => name.trim().replace(/\s+/g, ' ');
+
+const getTagsForCompany = async (companyId) => {
+  return dbAll(`
+    SELECT t.id, t.name
+    FROM tags t
+    JOIN company_tags ct ON t.id = ct.tag_id
+    WHERE ct.company_id = ?
+    ORDER BY t.name
+  `, [companyId]);
+};
+
+const getTagsForContact = async (contactId) => {
+  return dbAll(`
+    SELECT t.id, t.name
+    FROM tags t
+    JOIN contact_tags ct ON t.id = ct.tag_id
+    WHERE ct.contact_id = ?
+    ORDER BY t.name
+  `, [contactId]);
+};
+
+const ensureTagsExist = async (userId, tagIds = [], newTags = []) => {
+  const resolvedTagIds = new Set();
+
+  for (const tagId of tagIds || []) {
+    const existingTag = await dbGet('SELECT id FROM tags WHERE id = ? AND user_id = ?', [tagId, userId]);
+    if (existingTag) {
+      resolvedTagIds.add(existingTag.id);
+    }
+  }
+
+  for (const rawName of newTags || []) {
+    const normalizedName = normalizeTagName(rawName);
+    if (!normalizedName) continue;
+
+    let tag = await dbGet('SELECT id FROM tags WHERE user_id = ? AND LOWER(name) = LOWER(?)', [userId, normalizedName]);
+
+    if (!tag) {
+      const result = await dbRun(
+        'INSERT INTO tags (user_id, name, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+        [userId, normalizedName]
+      );
+      tag = { id: result.lastID };
+    }
+
+    resolvedTagIds.add(tag.id);
+  }
+
+  return Array.from(resolvedTagIds);
+};
+
+const assignTagsToCompany = async (companyId, userId, tagIds = [], newTags = []) => {
+  const resolvedTagIds = await ensureTagsExist(userId, tagIds, newTags);
+
+  await dbRun('DELETE FROM company_tags WHERE company_id = ?', [companyId]);
+
+  for (const tagId of resolvedTagIds) {
+    await dbRun(
+      'INSERT INTO company_tags (company_id, tag_id) VALUES (?, ?)',
+      [companyId, tagId]
+    );
+  }
+
+  return getTagsForCompany(companyId);
+};
+
+const assignTagsToContact = async (contactId, userId, tagIds = [], newTags = []) => {
+  const resolvedTagIds = await ensureTagsExist(userId, tagIds, newTags);
+
+  await dbRun('DELETE FROM contact_tags WHERE contact_id = ?', [contactId]);
+
+  for (const tagId of resolvedTagIds) {
+    await dbRun(
+      'INSERT INTO contact_tags (contact_id, tag_id) VALUES (?, ?)',
+      [contactId, tagId]
+    );
+  }
+
+  return getTagsForContact(contactId);
+};
+
 // ==================== AUTHENTICATION ROUTES ====================
 
 // Register new user
@@ -460,12 +542,245 @@ app.post('/api/admin/reassign-user-data', verifyToken, verifyAdmin, async (req, 
   }
 });
 
+// ==================== TAGS ROUTES ====================
+
+const buildContactsQuery = (userId, query = {}) => {
+  const {
+    search = '',
+    company_id = '',
+    tag_ids = '',
+    tag_mode = 'any',
+    outreach_start = '',
+    outreach_end = '',
+    outreach_presence = 'any',
+    sort_by = 'name',
+    sort_order = 'asc'
+  } = query;
+
+  const params = [userId];
+  const whereClauses = ['c.user_id = ?'];
+
+  if (search.trim()) {
+    whereClauses.push('(LOWER(c.first_name) LIKE ? OR LOWER(c.last_name) LIKE ? OR LOWER(c.first_name || " " || c.last_name) LIKE ?)');
+    const searchValue = `%${search.trim().toLowerCase()}%`;
+    params.push(searchValue, searchValue, searchValue);
+  }
+
+  if (company_id) {
+    whereClauses.push('c.company_id = ?');
+    params.push(company_id);
+  }
+
+  const parsedTagIds = String(tag_ids)
+    .split(',')
+    .map((id) => parseInt(id, 10))
+    .filter((id) => !Number.isNaN(id));
+
+  if (parsedTagIds.length > 0) {
+    const placeholders = parsedTagIds.map(() => '?').join(', ');
+    if (tag_mode === 'all') {
+      whereClauses.push(`
+        c.id IN (
+          SELECT ct.contact_id
+          FROM contact_tags ct
+          JOIN tags t ON t.id = ct.tag_id
+          WHERE t.user_id = ? AND ct.tag_id IN (${placeholders})
+          GROUP BY ct.contact_id
+          HAVING COUNT(DISTINCT ct.tag_id) = ?
+        )
+      `);
+      params.push(userId, ...parsedTagIds, parsedTagIds.length);
+    } else {
+      whereClauses.push(`
+        c.id IN (
+          SELECT ct.contact_id
+          FROM contact_tags ct
+          JOIN tags t ON t.id = ct.tag_id
+          WHERE t.user_id = ? AND ct.tag_id IN (${placeholders})
+        )
+      `);
+      params.push(userId, ...parsedTagIds);
+    }
+  }
+
+  const outreachDateClauses = [];
+  const outreachDateParams = [];
+
+  if (outreach_start) {
+    outreachDateClauses.push('DATE(oh.outreach_date) >= DATE(?)');
+    outreachDateParams.push(outreach_start);
+  }
+
+  if (outreach_end) {
+    outreachDateClauses.push('DATE(oh.outreach_date) <= DATE(?)');
+    outreachDateParams.push(outreach_end);
+  }
+
+  if (outreach_presence === 'has') {
+    whereClauses.push(`
+      EXISTS (
+        SELECT 1
+        FROM outreach_history oh
+        WHERE oh.contact_id = c.id
+          AND oh.user_id = c.user_id
+          ${outreachDateClauses.length ? `AND ${outreachDateClauses.join(' AND ')}` : ''}
+      )
+    `);
+    params.push(...outreachDateParams);
+  } else if (outreach_presence === 'none') {
+    whereClauses.push(`
+      NOT EXISTS (
+        SELECT 1
+        FROM outreach_history oh
+        WHERE oh.contact_id = c.id
+          AND oh.user_id = c.user_id
+          ${outreachDateClauses.length ? `AND ${outreachDateClauses.join(' AND ')}` : ''}
+      )
+    `);
+    params.push(...outreachDateParams);
+  }
+
+  const sortMap = {
+    name: 'LOWER(c.last_name) ASC, LOWER(c.first_name) ASC',
+    company: 'LOWER(COALESCE(co.name, "")) ASC, LOWER(c.last_name) ASC, LOWER(c.first_name) ASC',
+    created_at: 'c.created_at ASC',
+    last_outreach: 'last_outreach_date ASC NULLS FIRST, LOWER(c.last_name) ASC, LOWER(c.first_name) ASC'
+  };
+
+  const descendingSortMap = {
+    name: 'LOWER(c.last_name) DESC, LOWER(c.first_name) DESC',
+    company: 'LOWER(COALESCE(co.name, "")) DESC, LOWER(c.last_name) DESC, LOWER(c.first_name) DESC',
+    created_at: 'c.created_at DESC',
+    last_outreach: 'last_outreach_date DESC NULLS LAST, LOWER(c.last_name) ASC, LOWER(c.first_name) ASC'
+  };
+
+  const normalizedSortBy = Object.keys(sortMap).includes(sort_by) ? sort_by : 'name';
+  const normalizedSortOrder = String(sort_order).toLowerCase() === 'desc' ? 'desc' : 'asc';
+  const orderByClause = normalizedSortOrder === 'desc'
+    ? descendingSortMap[normalizedSortBy]
+    : sortMap[normalizedSortBy];
+
+  const sql = `
+    SELECT c.*,
+           co.name as company_name,
+           (
+             SELECT MAX(oh.outreach_date)
+             FROM outreach_history oh
+             WHERE oh.contact_id = c.id AND oh.user_id = c.user_id
+           ) as last_outreach_date
+    FROM contacts c
+    LEFT JOIN companies co ON c.company_id = co.id
+    WHERE ${whereClauses.join(' AND ')}
+    ORDER BY ${orderByClause}
+  `;
+
+  return { sql, params };
+};
+
+// Get all tags (filtered by user)
+app.get('/api/tags', verifyToken, async (req, res) => {
+  try {
+    const tags = await dbAll(`
+      SELECT t.*,
+             (SELECT COUNT(*) FROM company_tags ct WHERE ct.tag_id = t.id) as company_count,
+             (SELECT COUNT(*) FROM contact_tags ct WHERE ct.tag_id = t.id) as contact_count
+      FROM tags t
+      WHERE t.user_id = ?
+      ORDER BY t.name
+    `, [req.userId]);
+    res.json(tags);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Create tag (filtered by user)
+app.post('/api/tags', verifyToken, async (req, res) => {
+  try {
+    const normalizedName = normalizeTagName(req.body.name);
+
+    if (!normalizedName) {
+      return res.status(400).json({ error: 'Tag name is required' });
+    }
+
+    const existingTag = await dbGet(
+      'SELECT * FROM tags WHERE user_id = ? AND LOWER(name) = LOWER(?)',
+      [req.userId, normalizedName]
+    );
+
+    if (existingTag) {
+      return res.json(existingTag);
+    }
+
+    const result = await dbRun(
+      'INSERT INTO tags (user_id, name, updated_at) VALUES (?, ?, CURRENT_TIMESTAMP)',
+      [req.userId, normalizedName]
+    );
+    const tag = await dbGet('SELECT * FROM tags WHERE id = ?', [result.lastID]);
+    res.status(201).json(tag);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Update tag (filtered by user)
+app.put('/api/tags/:id', verifyToken, async (req, res) => {
+  try {
+    const normalizedName = normalizeTagName(req.body.name);
+
+    if (!normalizedName) {
+      return res.status(400).json({ error: 'Tag name is required' });
+    }
+
+    const duplicateTag = await dbGet(
+      'SELECT id FROM tags WHERE user_id = ? AND LOWER(name) = LOWER(?) AND id != ?',
+      [req.userId, normalizedName, req.params.id]
+    );
+
+    if (duplicateTag) {
+      return res.status(409).json({ error: 'A tag with this name already exists' });
+    }
+
+    await dbRun(
+      'UPDATE tags SET name = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
+      [normalizedName, req.params.id, req.userId]
+    );
+
+    const tag = await dbGet('SELECT * FROM tags WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
+    if (!tag) {
+      return res.status(404).json({ error: 'Tag not found' });
+    }
+
+    res.json(tag);
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
+// Delete tag (filtered by user)
+app.delete('/api/tags/:id', verifyToken, async (req, res) => {
+  try {
+    const result = await dbRun('DELETE FROM tags WHERE id = ? AND user_id = ?', [req.params.id, req.userId]);
+    if (result.changes === 0) {
+      return res.status(404).json({ error: 'Tag not found' });
+    }
+    res.json({ message: 'Tag deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ==================== COMPANIES ROUTES ====================
 
 // Get all companies (filtered by user)
 app.get('/api/companies', verifyToken, async (req, res) => {
   try {
     const companies = await dbAll('SELECT * FROM companies WHERE user_id = ? ORDER BY name', [req.userId]);
+
+    for (let i = 0; i < companies.length; i++) {
+      companies[i].tags = await getTagsForCompany(companies[i].id);
+    }
+
     res.json(companies);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -479,6 +794,7 @@ app.get('/api/companies/:id', verifyToken, async (req, res) => {
     if (!company) {
       return res.status(404).json({ error: 'Company not found' });
     }
+    company.tags = await getTagsForCompany(company.id);
     res.json(company);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -488,12 +804,13 @@ app.get('/api/companies/:id', verifyToken, async (req, res) => {
 // Create company (with user_id)
 app.post('/api/companies', verifyToken, async (req, res) => {
   try {
-    const { name, industry, website, location, territory, notes } = req.body;
+    const { name, industry, website, location, territory, notes, tag_ids, new_tags } = req.body;
     const result = await dbRun(
       'INSERT INTO companies (user_id, name, industry, website, location, territory, notes) VALUES (?, ?, ?, ?, ?, ?, ?)',
       [req.userId, name, industry, website, location, territory, notes]
     );
     const company = await dbGet('SELECT * FROM companies WHERE id = ?', [result.lastID]);
+    company.tags = await assignTagsToCompany(company.id, req.userId, tag_ids, new_tags);
     res.status(201).json(company);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -503,7 +820,7 @@ app.post('/api/companies', verifyToken, async (req, res) => {
 // Update company (filtered by user)
 app.put('/api/companies/:id', verifyToken, async (req, res) => {
   try {
-    const { name, industry, website, location, territory, notes } = req.body;
+    const { name, industry, website, location, territory, notes, tag_ids, new_tags } = req.body;
     await dbRun(
       'UPDATE companies SET name = ?, industry = ?, website = ?, location = ?, territory = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
       [name, industry, website, location, territory, notes, req.params.id, req.userId]
@@ -512,6 +829,7 @@ app.put('/api/companies/:id', verifyToken, async (req, res) => {
     if (!company) {
       return res.status(404).json({ error: 'Company not found' });
     }
+    company.tags = await assignTagsToCompany(company.id, req.userId, tag_ids, new_tags);
     res.json(company);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -536,13 +854,13 @@ app.delete('/api/companies/:id', verifyToken, async (req, res) => {
 // Get all contacts with company info (filtered by user)
 app.get('/api/contacts', verifyToken, async (req, res) => {
   try {
-    const contacts = await dbAll(`
-      SELECT c.*, co.name as company_name
-      FROM contacts c
-      LEFT JOIN companies co ON c.company_id = co.id
-      WHERE c.user_id = ?
-      ORDER BY c.last_name, c.first_name
-    `, [req.userId]);
+    const { sql, params } = buildContactsQuery(req.userId, req.query);
+    const contacts = await dbAll(sql, params);
+
+    for (let i = 0; i < contacts.length; i++) {
+      contacts[i].tags = await getTagsForContact(contacts[i].id);
+    }
+
     res.json(contacts);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -574,6 +892,7 @@ app.get('/api/contacts/:id', verifyToken, async (req, res) => {
     if (!contact) {
       return res.status(404).json({ error: 'Contact not found' });
     }
+    contact.tags = await getTagsForContact(contact.id);
     res.json(contact);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -583,12 +902,13 @@ app.get('/api/contacts/:id', verifyToken, async (req, res) => {
 // Create contact (with user_id)
 app.post('/api/contacts', verifyToken, async (req, res) => {
   try {
-    const { company_id, first_name, last_name, position, influence_level, lead_status, email, phone, linkedin, notes } = req.body;
+    const { company_id, first_name, last_name, position, influence_level, lead_status, email, phone, linkedin, notes, tag_ids, new_tags } = req.body;
     const result = await dbRun(
       'INSERT INTO contacts (user_id, company_id, first_name, last_name, position, influence_level, lead_status, email, phone, linkedin, notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
       [req.userId, company_id, first_name, last_name, position, influence_level, lead_status || 'Potential Lead', email, phone, linkedin, notes]
     );
     const contact = await dbGet('SELECT * FROM contacts WHERE id = ?', [result.lastID]);
+    contact.tags = await assignTagsToContact(contact.id, req.userId, tag_ids, new_tags);
     res.status(201).json(contact);
   } catch (err) {
     res.status(500).json({ error: err.message });
@@ -598,7 +918,7 @@ app.post('/api/contacts', verifyToken, async (req, res) => {
 // Update contact (filtered by user)
 app.put('/api/contacts/:id', verifyToken, async (req, res) => {
   try {
-    const { company_id, first_name, last_name, position, influence_level, lead_status, email, phone, linkedin, notes } = req.body;
+    const { company_id, first_name, last_name, position, influence_level, lead_status, email, phone, linkedin, notes, tag_ids, new_tags } = req.body;
     await dbRun(
       'UPDATE contacts SET company_id = ?, first_name = ?, last_name = ?, position = ?, influence_level = ?, lead_status = ?, email = ?, phone = ?, linkedin = ?, notes = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND user_id = ?',
       [company_id, first_name, last_name, position, influence_level, lead_status, email, phone, linkedin, notes, req.params.id, req.userId]
@@ -607,6 +927,7 @@ app.put('/api/contacts/:id', verifyToken, async (req, res) => {
     if (!contact) {
       return res.status(404).json({ error: 'Contact not found' });
     }
+    contact.tags = await assignTagsToContact(contact.id, req.userId, tag_ids, new_tags);
     res.json(contact);
   } catch (err) {
     res.status(500).json({ error: err.message });

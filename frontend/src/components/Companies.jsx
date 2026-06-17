@@ -1,19 +1,25 @@
 import React, { useState, useEffect } from 'react';
-import { getCompanies, createCompany, updateCompany, deleteCompany } from '../api';
+import { getCompanies, createCompany, updateCompany, deleteCompany, getTags } from '../api';
+
+const getInitialFormData = () => ({
+  name: '',
+  industry: '',
+  website: '',
+  location: '',
+  territory: '',
+  notes: '',
+  tag_ids: [],
+  new_tags: []
+});
 
 function Companies() {
   const [companies, setCompanies] = useState([]);
+  const [availableTags, setAvailableTags] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showModal, setShowModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState(null);
-  const [formData, setFormData] = useState({
-    name: '',
-    industry: '',
-    website: '',
-    location: '',
-    territory: '',
-    notes: ''
-  });
+  const [newTagInput, setNewTagInput] = useState('');
+  const [formData, setFormData] = useState(getInitialFormData());
 
   useEffect(() => {
     loadCompanies();
@@ -21,13 +27,22 @@ function Companies() {
 
   const loadCompanies = async () => {
     try {
-      const response = await getCompanies();
-      setCompanies(response.data);
+      const [companiesRes, tagsRes] = await Promise.all([
+        getCompanies(),
+        getTags()
+      ]);
+      setCompanies(companiesRes.data);
+      setAvailableTags(tagsRes.data);
     } catch (error) {
       console.error('Error loading companies:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const resetForm = () => {
+    setFormData(getInitialFormData());
+    setNewTagInput('');
   };
 
   const handleSubmit = async (e) => {
@@ -40,10 +55,11 @@ function Companies() {
       }
       setShowModal(false);
       setEditingCompany(null);
-      setFormData({ name: '', industry: '', website: '', location: '', territory: '', notes: '' });
+      resetForm();
       loadCompanies();
     } catch (error) {
       console.error('Error saving company:', error);
+      alert(error.response?.data?.error || 'Failed to save company');
     }
   };
 
@@ -55,8 +71,11 @@ function Companies() {
       website: company.website || '',
       location: company.location || '',
       territory: company.territory || '',
-      notes: company.notes || ''
+      notes: company.notes || '',
+      tag_ids: (company.tags || []).map((tag) => tag.id),
+      new_tags: []
     });
+    setNewTagInput('');
     setShowModal(true);
   };
 
@@ -73,8 +92,48 @@ function Companies() {
 
   const handleAdd = () => {
     setEditingCompany(null);
-    setFormData({ name: '', industry: '', website: '', location: '', territory: '', notes: '' });
+    resetForm();
     setShowModal(true);
+  };
+
+  const handleTagToggle = (tagId) => {
+    setFormData((prev) => ({
+      ...prev,
+      tag_ids: prev.tag_ids.includes(tagId)
+        ? prev.tag_ids.filter((id) => id !== tagId)
+        : [...prev.tag_ids, tagId]
+    }));
+  };
+
+  const handleAddNewTag = () => {
+    const normalizedTag = newTagInput.trim();
+    if (!normalizedTag) {
+      return;
+    }
+
+    const existingTag = availableTags.find((tag) => tag.name.toLowerCase() === normalizedTag.toLowerCase());
+    if (existingTag) {
+      if (!formData.tag_ids.includes(existingTag.id)) {
+        setFormData((prev) => ({
+          ...prev,
+          tag_ids: [...prev.tag_ids, existingTag.id]
+        }));
+      }
+    } else if (!formData.new_tags.some((tag) => tag.toLowerCase() === normalizedTag.toLowerCase())) {
+      setFormData((prev) => ({
+        ...prev,
+        new_tags: [...prev.new_tags, normalizedTag]
+      }));
+    }
+
+    setNewTagInput('');
+  };
+
+  const handleRemoveNewTag = (tagName) => {
+    setFormData((prev) => ({
+      ...prev,
+      new_tags: prev.new_tags.filter((tag) => tag !== tagName)
+    }));
   };
 
   if (loading) {
@@ -106,6 +165,7 @@ function Companies() {
                 <th>Industry</th>
                 <th>Location</th>
                 <th>Territory</th>
+                <th>Tags</th>
                 <th>Website</th>
                 <th>Actions</th>
               </tr>
@@ -117,6 +177,15 @@ function Companies() {
                   <td>{company.industry || '-'}</td>
                   <td>{company.location || '-'}</td>
                   <td>{company.territory || '-'}</td>
+                  <td>
+                    {company.tags?.length ? (
+                      <div className="tag-chip-list">
+                        {company.tags.map((tag) => (
+                          <span key={tag.id} className="tag-chip">{tag.name}</span>
+                        ))}
+                      </div>
+                    ) : '-'}
+                  </td>
                   <td>
                     {company.website ? (
                       <a href={company.website} target="_blank" rel="noopener noreferrer">
@@ -196,6 +265,57 @@ function Companies() {
                   onChange={(e) => setFormData({ ...formData, website: e.target.value })}
                   placeholder="https://example.com"
                 />
+              </div>
+              <div className="form-group">
+                <label>Tags</label>
+                <div className="tag-selector">
+                  {availableTags.length === 0 ? (
+                    <p style={{ color: '#7f8c8d', fontSize: '0.875rem' }}>No existing tags yet</p>
+                  ) : (
+                    <div className="tag-option-list">
+                      {availableTags.map((tag) => (
+                        <label key={tag.id} className="tag-option">
+                          <input
+                            type="checkbox"
+                            checked={formData.tag_ids.includes(tag.id)}
+                            onChange={() => handleTagToggle(tag.id)}
+                          />
+                          <span>{tag.name}</span>
+                        </label>
+                      ))}
+                    </div>
+                  )}
+
+                  <div className="tag-create-row">
+                    <input
+                      type="text"
+                      value={newTagInput}
+                      onChange={(e) => setNewTagInput(e.target.value)}
+                      placeholder="Create a new tag"
+                    />
+                    <button type="button" className="btn btn-small btn-secondary" onClick={handleAddNewTag}>
+                      Add Tag
+                    </button>
+                  </div>
+
+                  {formData.new_tags.length > 0 && (
+                    <div>
+                      <div className="info-label">New tags to create</div>
+                      <div className="tag-chip-list" style={{ marginTop: '0.5rem' }}>
+                        {formData.new_tags.map((tag) => (
+                          <button
+                            key={tag}
+                            type="button"
+                            className="tag-chip tag-chip-button"
+                            onClick={() => handleRemoveNewTag(tag)}
+                          >
+                            {tag} ×
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
               <div className="form-group">
                 <label>Notes</label>
