@@ -418,6 +418,19 @@ tbody tr:last-child td {
   font-size: 0.8125rem;
 }
 
+.contacts-col-checkbox {
+  width: 40px;
+  text-align: center;
+  padding: 0.5rem;
+}
+
+.contacts-col-checkbox input[type="checkbox"] {
+  cursor: pointer;
+  width: 16px;
+  height: 16px;
+  margin: 0;
+}
+
 .contacts-col-name {
   width: 16%;
 }

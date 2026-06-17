@@ -57,6 +57,7 @@ export const getContactsByCompany = (companyId) => api.get(`/companies/${company
 export const createContact = (data) => api.post('/contacts', data);
 export const updateContact = (id, data) => api.put(`/contacts/${id}`, data);
 export const deleteContact = (id) => api.delete(`/contacts/${id}`);
+export const exportContacts = (contactIds) => api.post('/contacts/export', { contact_ids: contactIds }, { responseType: 'blob' });
 
 // Contact Relationships
 export const getContactRelationships = (contactId) => api.get(`/contacts/${contactId}/relationships`);

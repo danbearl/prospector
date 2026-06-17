@@ -947,6 +947,66 @@ app.delete('/api/contacts/:id', verifyToken, async (req, res) => {
   }
 });
 
+// CSV Export utility function
+const generateCSV = (contacts) => {
+  const headers = ['FirstName', 'LastName', 'Email', 'Company'];
+  const escapeCSV = (value) => {
+    if (value == null) return '';
+    const stringValue = String(value);
+    if (stringValue.includes(',') || stringValue.includes('"') || stringValue.includes('\n') || stringValue.includes('\r')) {
+      return `"${stringValue.replace(/"/g, '""')}"`;
+    }
+    return stringValue;
+  };
+  const rows = contacts.map(contact => [
+    escapeCSV(contact.first_name),
+    escapeCSV(contact.last_name),
+    escapeCSV(contact.email),
+    escapeCSV(contact.company_name)
+  ].join(','));
+  return [headers.join(','), ...rows].join('\n');
+};
+
+// Export contacts to CSV (filtered by user)
+app.post('/api/contacts/export', verifyToken, async (req, res) => {
+  try {
+    const { contact_ids } = req.body;
+    if (!Array.isArray(contact_ids) || contact_ids.length === 0) {
+      return res.status(400).json({ error: 'No contact IDs provided' });
+    }
+    if (!contact_ids.every(id => Number.isInteger(id) && id > 0)) {
+      return res.status(400).json({ error: 'Invalid contact IDs' });
+    }
+    if (contact_ids.length > 1000) {
+      return res.status(400).json({ error: 'Too many contacts selected (max 1000)' });
+    }
+    const placeholders = contact_ids.map(() => '?').join(',');
+    const contacts = await dbAll(`
+      SELECT 
+        c.first_name,
+        c.last_name,
+        c.email,
+        co.name as company_name
+      FROM contacts c
+      JOIN companies co ON c.company_id = co.id
+      WHERE c.id IN (${placeholders}) 
+        AND c.user_id = ?
+      ORDER BY c.last_name, c.first_name
+    `, [...contact_ids, req.userId]);
+    if (contacts.length === 0) {
+      return res.status(404).json({ error: 'No contacts found with the provided IDs' });
+    }
+    const csv = generateCSV(contacts);
+    const filename = `contacts-export-${new Date().toISOString().split('T')[0]}.csv`;
+    res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+    res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+    res.send(csv);
+  } catch (err) {
+    console.error('CSV export error:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // ==================== CONTACT RELATIONSHIPS ROUTES ====================
 
 // Get relationships for a contact (filtered by user)

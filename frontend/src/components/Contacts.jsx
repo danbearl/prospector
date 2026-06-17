@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getContacts, getCompanies, getTags, createContact, updateContact, deleteContact } from '../api';
+import { getContacts, getCompanies, getTags, createContact, updateContact, deleteContact, exportContacts } from '../api';
 
 const getInitialFormData = () => ({
   company_id: '',
@@ -40,6 +40,8 @@ function Contacts() {
   const [formData, setFormData] = useState(getInitialFormData());
   const [filters, setFilters] = useState(getInitialFilters());
   const [filtersCollapsed, setFiltersCollapsed] = useState(false);
+  const [selectedContacts, setSelectedContacts] = useState([]);
+  const [isExporting, setIsExporting] = useState(false);
 
   useEffect(() => {
     loadReferenceData();
@@ -215,6 +217,52 @@ function Contacts() {
     return `badge ${classes[status] || 'badge-medium'}`;
   };
 
+  const handleSelectContact = (contactId) => {
+    setSelectedContacts((prev) =>
+      prev.includes(contactId)
+        ? prev.filter((id) => id !== contactId)
+        : [...prev, contactId]
+    );
+  };
+
+  const handleSelectAll = () => {
+    if (selectedContacts.length === contacts.length && contacts.length > 0) {
+      setSelectedContacts([]);
+    } else {
+      setSelectedContacts(contacts.map((contact) => contact.id));
+    }
+  };
+
+  const handleExportSelected = async () => {
+    if (selectedContacts.length === 0) {
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+      const response = await exportContacts(selectedContacts);
+      
+      // Create blob and download
+      const blob = new Blob([response.data], { type: 'text/csv' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `contacts-export-${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+      
+      // Clear selection after successful export
+      setSelectedContacts([]);
+    } catch (error) {
+      console.error('Error exporting contacts:', error);
+      alert(error.response?.data?.error || 'Failed to export contacts');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   if (loading) {
     return <div className="container"><div className="loading">Loading contacts...</div></div>;
   }
@@ -223,9 +271,18 @@ function Contacts() {
     <div className="container">
       <div className="page-header">
         <h2>Contacts</h2>
-        <button className="btn btn-primary" onClick={handleAdd}>
-          + Add Contact
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            className="btn btn-secondary"
+            onClick={handleExportSelected}
+            disabled={selectedContacts.length === 0 || isExporting}
+          >
+            {isExporting ? 'Exporting...' : `Export Selected (${selectedContacts.length})`}
+          </button>
+          <button className="btn btn-primary" onClick={handleAdd}>
+            + Add Contact
+          </button>
+        </div>
       </div>
 
       <div className="card">
@@ -356,6 +413,14 @@ function Contacts() {
           <table className="contacts-table">
             <thead>
               <tr>
+                <th className="contacts-col-checkbox">
+                  <input
+                    type="checkbox"
+                    checked={selectedContacts.length === contacts.length && contacts.length > 0}
+                    onChange={handleSelectAll}
+                    title="Select all contacts"
+                  />
+                </th>
                 <th className="contacts-col-name">
                   <button type="button" className="sort-button" onClick={() => handleSort('name')}>
                     Name {getSortIndicator('name')}
@@ -381,6 +446,14 @@ function Contacts() {
             <tbody>
               {contacts.map((contact) => (
                 <tr key={contact.id}>
+                  <td className="contacts-col-checkbox">
+                    <input
+                      type="checkbox"
+                      checked={selectedContacts.includes(contact.id)}
+                      onChange={() => handleSelectContact(contact.id)}
+                      title={`Select ${contact.first_name} ${contact.last_name}`}
+                    />
+                  </td>
                   <td className="contacts-col-name">
                     <strong>{contact.first_name} {contact.last_name}</strong>
                   </td>
