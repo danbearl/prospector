@@ -457,7 +457,7 @@ function Contacts() {
                   <td className="contacts-col-name">
                     <strong>{contact.first_name} {contact.last_name}</strong>
                   </td>
-                  <td className="contacts-col-company contacts-cell-truncate" title={contact.company_name || ''}>
+                  <td className="contacts-col-company">
                     {contact.company_name}
                   </td>
                   <td className="contacts-col-status">
@@ -474,7 +474,7 @@ function Contacts() {
                       </div>
                     ) : '-'}
                   </td>
-                  <td className="contacts-col-email contacts-cell-truncate" title={contact.email || ''}>
+                  <td className="contacts-col-email">
                     {contact.email ? (
                       <a href={`mailto:${contact.email}`}>{contact.email}</a>
                     ) : '-'}
