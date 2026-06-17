@@ -207,16 +207,6 @@ function Contacts() {
     return filters.sort_order === 'asc' ? '↑' : '↓';
   };
 
-  const getInfluenceBadgeClass = (level) => {
-    const classes = {
-      'Low': 'badge-low',
-      'Medium': 'badge-medium',
-      'High': 'badge-high',
-      'Executive': 'badge-executive'
-    };
-    return `badge ${classes[level] || 'badge-medium'}`;
-  };
-
   const getLeadStatusBadgeClass = (status) => {
     const classes = {
       'Potential Lead': 'badge-medium',
@@ -363,50 +353,46 @@ function Contacts() {
         </div>
       ) : (
         <div className="table-container">
-          <table>
+          <table className="contacts-table">
             <thead>
               <tr>
-                <th>
+                <th className="contacts-col-name">
                   <button type="button" className="sort-button" onClick={() => handleSort('name')}>
                     Name {getSortIndicator('name')}
                   </button>
                 </th>
-                <th>
+                <th className="contacts-col-company">
                   <button type="button" className="sort-button" onClick={() => handleSort('company')}>
                     Company {getSortIndicator('company')}
                   </button>
                 </th>
-                <th>Position</th>
-                <th>Influence</th>
-                <th>Lead Status</th>
-                <th>Tags</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>
+                <th className="contacts-col-status">Lead Status</th>
+                <th className="contacts-col-tags">Tags</th>
+                <th className="contacts-col-email">Email</th>
+                <th className="contacts-col-phone">Phone</th>
+                <th className="contacts-col-last-outreach">
                   <button type="button" className="sort-button" onClick={() => handleSort('last_outreach')}>
                     Last Outreach {getSortIndicator('last_outreach')}
                   </button>
                 </th>
-                <th>Actions</th>
+                <th className="contacts-col-actions">Actions</th>
               </tr>
             </thead>
             <tbody>
               {contacts.map((contact) => (
                 <tr key={contact.id}>
-                  <td><strong>{contact.first_name} {contact.last_name}</strong></td>
-                  <td>{contact.company_name}</td>
-                  <td>{contact.position || '-'}</td>
-                  <td>
-                    <span className={getInfluenceBadgeClass(contact.influence_level)}>
-                      {contact.influence_level}
-                    </span>
+                  <td className="contacts-col-name">
+                    <strong>{contact.first_name} {contact.last_name}</strong>
                   </td>
-                  <td>
+                  <td className="contacts-col-company contacts-cell-truncate" title={contact.company_name || ''}>
+                    {contact.company_name}
+                  </td>
+                  <td className="contacts-col-status">
                     <span className={getLeadStatusBadgeClass(contact.lead_status)}>
                       {contact.lead_status || 'Potential Lead'}
                     </span>
                   </td>
-                  <td>
+                  <td className="contacts-col-tags">
                     {contact.tags?.length ? (
                       <div className="tag-chip-list">
                         {contact.tags.map((tag) => (
@@ -415,20 +401,22 @@ function Contacts() {
                       </div>
                     ) : '-'}
                   </td>
-                  <td>
+                  <td className="contacts-col-email contacts-cell-truncate" title={contact.email || ''}>
                     {contact.email ? (
                       <a href={`mailto:${contact.email}`}>{contact.email}</a>
                     ) : '-'}
                   </td>
-                  <td>{contact.phone || '-'}</td>
-                  <td>{contact.last_outreach_date ? new Date(contact.last_outreach_date).toLocaleDateString() : '-'}</td>
-                  <td>
-                    <div className="table-actions">
+                  <td className="contacts-col-phone">{contact.phone || '-'}</td>
+                  <td className="contacts-col-last-outreach">
+                    {contact.last_outreach_date ? new Date(contact.last_outreach_date).toLocaleDateString() : '-'}
+                  </td>
+                  <td className="contacts-col-actions">
+                    <div className="table-actions contacts-table-actions">
                       <Link to={`/contacts/${contact.id}`} className="btn btn-small btn-primary">
                         View
                       </Link>
                       <button className="btn btn-small btn-secondary" onClick={() => handleEdit(contact)}>
-                        Edit
+                        Update
                       </button>
                       <button className="btn btn-small btn-danger" onClick={() => handleDelete(contact.id)}>
                         Delete
