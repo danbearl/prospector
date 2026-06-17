@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getContacts, getCompanies, getTags, createContact, updateContact, deleteContact, exportContacts } from '../api';
+import { formatLocalDate } from '../utils/dateUtils';
 
 const getInitialFormData = () => ({
   company_id: '',
@@ -481,7 +482,7 @@ function Contacts() {
                   </td>
                   <td className="contacts-col-phone">{contact.phone || '-'}</td>
                   <td className="contacts-col-last-outreach">
-                    {contact.last_outreach_date ? new Date(contact.last_outreach_date).toLocaleDateString() : '-'}
+                    {formatLocalDate(contact.last_outreach_date)}
                   </td>
                   <td className="contacts-col-actions">
                     <div className="table-actions contacts-table-actions">

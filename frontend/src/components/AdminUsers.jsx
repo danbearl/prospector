@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import api from '../api';
+import { formatLocalDateTime } from '../utils/dateUtils';
 
 function AdminUsers() {
   const [users, setUsers] = useState([]);
@@ -148,8 +149,7 @@ function AdminUsers() {
 
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
-    const date = new Date(dateString);
-    return date.toLocaleDateString() + ' ' + date.toLocaleTimeString();
+    return formatLocalDateTime(dateString);
   };
 
   if (loading) {

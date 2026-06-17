@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getCompanies, getContacts, getAllOutreach, getCampaigns, getDashboardFollowUps, closeOutreachFollowUp } from '../api';
 import LogOutreachModal from './LogOutreachModal';
+import { formatLocalDate } from '../utils/dateUtils';
 
 function Dashboard() {
   const [stats, setStats] = useState({
@@ -150,7 +151,7 @@ function Dashboard() {
                     <div>
                       <strong>{followUp.first_name} {followUp.last_name}</strong> - {followUp.company_name || 'No Company'}
                       <div style={{ color: '#7f8c8d', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                        Follow up by {new Date(followUp.follow_up_date).toLocaleDateString()} • {followUp.outreach_type}
+                        Follow up by {formatLocalDate(followUp.follow_up_date)} • {followUp.outreach_type}
                         {followUp.subject && ` • ${followUp.subject}`}
                       </div>
                       {followUp.outcome && (
@@ -200,7 +201,7 @@ function Dashboard() {
                     <div>
                       <strong>{followUp.first_name} {followUp.last_name}</strong> - {followUp.company_name || 'No Company'}
                       <div style={{ color: '#c0392b', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                        Was due {new Date(followUp.follow_up_date).toLocaleDateString()} • {followUp.outreach_type}
+                        Was due {formatLocalDate(followUp.follow_up_date)} • {followUp.outreach_type}
                         {followUp.subject && ` • ${followUp.subject}`}
                       </div>
                       {followUp.outcome && (
@@ -251,7 +252,7 @@ function Dashboard() {
                   <div>
                     <strong>{outreach.first_name} {outreach.last_name}</strong> - {outreach.company_name}
                     <div style={{ color: '#7f8c8d', fontSize: '0.875rem', marginTop: '0.25rem' }}>
-                      {outreach.outreach_type} • {new Date(outreach.outreach_date).toLocaleDateString()}
+                      {outreach.outreach_type} • {formatLocalDate(outreach.outreach_date)}
                       {outreach.subject && ` • ${outreach.subject}`}
                     </div>
                   </div>

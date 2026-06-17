@@ -12,6 +12,7 @@ import {
   getContacts,
   getCampaigns
 } from '../api';
+import { formatLocalDate } from '../utils/dateUtils';
 
 function ContactDetail() {
   const { id } = useParams();
@@ -327,7 +328,7 @@ function ContactDetail() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                       <span className="badge badge-medium">{item.outreach_type}</span>
                       <span style={{ color: '#7f8c8d', fontSize: '0.875rem' }}>
-                        {new Date(item.outreach_date).toLocaleDateString()}
+                        {formatLocalDate(item.outreach_date)}
                       </span>
                     </div>
                     {item.subject && (
@@ -345,7 +346,7 @@ function ContactDetail() {
                     )}
                     {item.follow_up_date && (
                       <div style={{ fontSize: '0.875rem', color: '#e74c3c', marginTop: '0.25rem' }}>
-                        <strong>Follow-up:</strong> {new Date(item.follow_up_date).toLocaleDateString()}
+                        <strong>Follow-up:</strong> {formatLocalDate(item.follow_up_date)}
                       </div>
                     )}
                   </div>

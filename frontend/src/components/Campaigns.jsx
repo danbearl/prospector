@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getCampaigns, createCampaign, updateCampaign, deleteCampaign, getCampaignOutreach } from '../api';
+import { formatLocalDate } from '../utils/dateUtils';
 
 function Campaigns() {
   const [campaigns, setCampaigns] = useState([]);
@@ -229,14 +230,10 @@ function Campaigns() {
                     <td><strong>{campaign.name}</strong></td>
                     <td>{campaign.description || '-'}</td>
                     <td>
-                      {campaign.start_date 
-                        ? new Date(campaign.start_date).toLocaleDateString() 
-                        : '-'}
+                      {formatLocalDate(campaign.start_date)}
                     </td>
                     <td>
-                      {campaign.end_date 
-                        ? new Date(campaign.end_date).toLocaleDateString() 
-                        : '-'}
+                      {formatLocalDate(campaign.end_date)}
                     </td>
                     <td>
                       <span className={`badge ${getStatusBadgeClass(campaign.status)}`}>
@@ -314,8 +311,8 @@ function Campaigns() {
                             <span className="badge badge-low" style={{ marginRight: '0.5rem' }}>
                               {outreach.outreach_type}
                             </span>
-                            {new Date(outreach.outreach_date).toLocaleDateString()}
-                          </div>
+                              {formatLocalDate(outreach.outreach_date)}
+                            </div>
                           {outreach.subject && (
                             <div style={{ marginTop: '0.5rem' }}>
                               <strong>Subject:</strong> {outreach.subject}

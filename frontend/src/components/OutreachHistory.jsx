@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getAllOutreach } from '../api';
+import { formatLocalDate } from '../utils/dateUtils';
 
 function OutreachHistory() {
   const [outreach, setOutreach] = useState([]);
@@ -54,7 +55,7 @@ function OutreachHistory() {
                   <div>
                     <strong>{item.first_name} {item.last_name}</strong> - {item.company_name}
                     <div style={{ fontSize: '0.875rem', color: '#856404', marginTop: '0.25rem' }}>
-                      Follow-up: {new Date(item.follow_up_date).toLocaleDateString()}
+                      Follow-up: {formatLocalDate(item.follow_up_date)}
                       {item.subject && ` • ${item.subject}`}
                     </div>
                   </div>
@@ -126,7 +127,7 @@ function OutreachHistory() {
                     <td>
                       <span className="badge badge-medium">{item.outreach_type}</span>
                     </td>
-                    <td>{new Date(item.outreach_date).toLocaleDateString()}</td>
+                    <td>{formatLocalDate(item.outreach_date)}</td>
                     <td><strong>{item.first_name} {item.last_name}</strong></td>
                     <td>{item.company_name}</td>
                     <td>{item.subject || '-'}</td>
@@ -145,7 +146,7 @@ function OutreachHistory() {
                     <td>
                       {item.follow_up_date ? (
                         <span style={{ color: '#e74c3c', fontWeight: '500' }}>
-                          {new Date(item.follow_up_date).toLocaleDateString()}
+                          {formatLocalDate(item.follow_up_date)}
                         </span>
                       ) : '-'}
                     </td>

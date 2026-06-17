@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
+import { formatLocalDate } from '../utils/dateUtils';
 
 function UserProfile() {
   const [user, setUser] = useState(null);
@@ -209,7 +210,7 @@ function UserProfile() {
               <strong>Email:</strong> {user?.email || 'Not set'}
             </div>
             <div style={{ marginBottom: '1rem' }}>
-              <strong>Member since:</strong> {new Date(user?.created_at).toLocaleDateString()}
+              <strong>Member since:</strong> {formatLocalDate(user?.created_at)}
             </div>
             <button
               onClick={() => setEditMode(true)}
