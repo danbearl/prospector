@@ -1326,6 +1326,81 @@ app.post('/api/contacts/:id/outreach', verifyToken, async (req, res) => {
   }
 });
 
+// Create bulk outreach records (multiple contacts, same outreach data)
+app.post('/api/outreach/bulk', verifyToken, async (req, res) => {
+  try {
+    const { contact_ids, outreach_type, outreach_date, subject, notes, outcome, follow_up_date, campaign_ids, new_campaign } = req.body;
+    
+    // Validate contact_ids
+    if (!contact_ids || !Array.isArray(contact_ids) || contact_ids.length === 0) {
+      return res.status(400).json({ error: 'contact_ids must be a non-empty array' });
+    }
+    
+    // Verify all contacts belong to the user
+    const contactCheckPromises = contact_ids.map(contactId => 
+      dbGet('SELECT id FROM contacts WHERE id = ? AND user_id = ?', [contactId, req.userId])
+    );
+    const contactChecks = await Promise.all(contactCheckPromises);
+    
+    const invalidContacts = contactChecks.filter(c => !c);
+    if (invalidContacts.length > 0) {
+      return res.status(403).json({ error: 'One or more contacts do not belong to this user or do not exist' });
+    }
+    
+    // Use a transaction-like approach by collecting all operations
+    const outreachIds = [];
+    let newCampaignId = null;
+    
+    try {
+      // Handle new campaign creation if provided (create once for all outreach entries)
+      if (new_campaign && new_campaign.name) {
+        const campaignResult = await dbRun(
+          'INSERT INTO campaigns (user_id, name, description, status) VALUES (?, ?, ?, ?)',
+          [req.userId, new_campaign.name, new_campaign.description || '', 'Active']
+        );
+        newCampaignId = campaignResult.lastID;
+      }
+      
+      // Prepare campaign IDs to link
+      const campaignIdsToLink = [...(campaign_ids || [])];
+      if (newCampaignId) {
+        campaignIdsToLink.push(newCampaignId);
+      }
+      
+      // Create outreach record for each contact
+      for (const contactId of contact_ids) {
+        const result = await dbRun(
+          'INSERT INTO outreach_history (user_id, contact_id, outreach_type, outreach_date, subject, notes, outcome, follow_up_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)',
+          [req.userId, contactId, outreach_type, outreach_date, subject, notes, outcome, follow_up_date]
+        );
+        const outreachId = result.lastID;
+        outreachIds.push(outreachId);
+        
+        // Link outreach to campaigns
+        for (const campaignId of campaignIdsToLink) {
+          await dbRun(
+            'INSERT INTO outreach_campaigns (outreach_id, campaign_id) VALUES (?, ?)',
+            [outreachId, campaignId]
+          );
+        }
+      }
+      
+      res.status(201).json({
+        success: true,
+        count: outreachIds.length,
+        outreach_ids: outreachIds
+      });
+    } catch (err) {
+      // If any operation fails, we should ideally rollback, but SQLite doesn't support
+      // nested transactions easily. For now, return error with what was created.
+      console.error('Error during bulk outreach creation:', err);
+      throw err;
+    }
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+});
+
 // Update outreach record (filtered by user)
 app.put('/api/outreach/:id', verifyToken, async (req, res) => {
   try {

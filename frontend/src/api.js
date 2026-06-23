@@ -69,6 +69,7 @@ export const getAllOutreach = () => api.get('/outreach');
 export const getDashboardFollowUps = () => api.get('/dashboard/follow-ups');
 export const getContactOutreach = (contactId) => api.get(`/contacts/${contactId}/outreach`);
 export const createOutreach = (contactId, data) => api.post(`/contacts/${contactId}/outreach`, data);
+export const createBulkOutreach = (data) => api.post('/outreach/bulk', data);
 export const closeOutreachFollowUp = (id) => api.put(`/outreach/${id}/close-follow-up`);
 export const updateOutreach = (id, data) => api.put(`/outreach/${id}`, data);
 export const deleteOutreach = (id) => api.delete(`/outreach/${id}`);

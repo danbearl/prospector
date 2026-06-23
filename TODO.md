@@ -15,5 +15,5 @@
     2. Imports into the database and associates with the appropriate user
 9. ~~Add upcoming Follow-Ups to dashboard~~
 10. ~~Add tags to contacts and accounts~~
-11. Refactor contacts table view to better fit within div element
-
+11. ~~Refactor contacts table view to better fit within div element~~
+12. ~~Export selected contacts to CSV for use in mail-merge~~

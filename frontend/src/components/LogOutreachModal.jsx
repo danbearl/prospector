@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { getContacts, getCampaigns, createOutreach, closeOutreachFollowUp } from '../api';
+import { getContacts, getCampaigns, createBulkOutreach, closeOutreachFollowUp } from '../api';
 
 function LogOutreachModal({ isOpen, onClose, onSuccess, initialContactId = '', completedFollowUpId = null }) {
   const [contacts, setContacts] = useState([]);
@@ -9,7 +9,8 @@ function LogOutreachModal({ isOpen, onClose, onSuccess, initialContactId = '', c
   const [showNewCampaignForm, setShowNewCampaignForm] = useState(false);
   
   const [formData, setFormData] = useState({
-    contact_id: '',
+    contact_ids: [],
+    selected_contact_id: '',
     outreach_type: 'Email',
     outreach_date: new Date().toISOString().split('T')[0],
     subject: '',
@@ -27,13 +28,31 @@ function LogOutreachModal({ isOpen, onClose, onSuccess, initialContactId = '', c
   }, [isOpen]);
 
   useEffect(() => {
-    if (isOpen) {
+    if (isOpen && initialContactId) {
       setFormData(prev => ({
         ...prev,
-        contact_id: initialContactId ? String(initialContactId) : prev.contact_id
+        contact_ids: [parseInt(initialContactId)],
+        selected_contact_id: ''
       }));
     }
   }, [isOpen, initialContactId]);
+
+  const addContact = () => {
+    if (formData.selected_contact_id && !formData.contact_ids.includes(parseInt(formData.selected_contact_id))) {
+      setFormData({
+        ...formData,
+        contact_ids: [...formData.contact_ids, parseInt(formData.selected_contact_id)],
+        selected_contact_id: ''
+      });
+    }
+  };
+
+  const removeContact = (contactId) => {
+    setFormData({
+      ...formData,
+      contact_ids: formData.contact_ids.filter(id => id !== contactId)
+    });
+  };
 
   const loadData = async () => {
     try {
@@ -55,14 +74,17 @@ function LogOutreachModal({ isOpen, onClose, onSuccess, initialContactId = '', c
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!formData.contact_id) {
-      alert('Please select a contact');
+    if (formData.contact_ids.length === 0) {
+      alert('Please select at least one contact');
       return;
     }
 
     try {
       setSubmitting(true);
-      await createOutreach(formData.contact_id, {
+      
+      // Prepare outreach data for bulk creation
+      const outreachData = {
+        contact_ids: formData.contact_ids,
         outreach_type: formData.outreach_type,
         outreach_date: formData.outreach_date,
         subject: formData.subject,
@@ -71,15 +93,23 @@ function LogOutreachModal({ isOpen, onClose, onSuccess, initialContactId = '', c
         follow_up_date: formData.follow_up_date || null,
         campaign_ids: formData.campaign_ids,
         new_campaign: showNewCampaignForm ? formData.new_campaign : null
-      });
+      };
+      
+      // Call bulk API
+      const response = await createBulkOutreach(outreachData);
 
       if (completedFollowUpId) {
         await closeOutreachFollowUp(completedFollowUpId);
       }
       
+      // Show success message with count
+      const count = response.data.count;
+      alert(`Successfully created ${count} outreach ${count === 1 ? 'entry' : 'entries'}`);
+      
       // Reset form
       setFormData({
-        contact_id: '',
+        contact_ids: [],
+        selected_contact_id: '',
         outreach_type: 'Email',
         outreach_date: new Date().toISOString().split('T')[0],
         subject: '',
@@ -125,20 +155,56 @@ function LogOutreachModal({ isOpen, onClose, onSuccess, initialContactId = '', c
         ) : (
           <form onSubmit={handleSubmit}>
             <div className="form-group">
-              <label>Contact *</label>
-              <select
-                value={formData.contact_id}
-                onChange={(e) => setFormData({ ...formData, contact_id: e.target.value })}
-                required
-                disabled={Boolean(initialContactId)}
-              >
-                <option value="">Select a contact</option>
-                {contacts.map(contact => (
-                  <option key={contact.id} value={contact.id}>
-                    {contact.first_name} {contact.last_name} - {contact.company_name || 'No Company'}
-                  </option>
-                ))}
-              </select>
+              <label>Contacts *</label>
+              
+              {/* Selected contacts display */}
+              {formData.contact_ids.length > 0 && (
+                <div className="selected-contacts">
+                  {formData.contact_ids.map(contactId => {
+                    const contact = contacts.find(c => c.id === contactId);
+                    if (!contact) return null;
+                    return (
+                      <div key={contactId} className="contact-chip">
+                        <span>{contact.first_name} {contact.last_name}</span>
+                        <button
+                          type="button"
+                          onClick={() => removeContact(contactId)}
+                          className="remove-chip"
+                          aria-label={`Remove ${contact.first_name} ${contact.last_name}`}
+                        >
+                          ×
+                        </button>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+              
+              {/* Add contact dropdown */}
+              <div className="add-contact-row">
+                <select
+                  value={formData.selected_contact_id}
+                  onChange={(e) => setFormData({ ...formData, selected_contact_id: e.target.value })}
+                  disabled={Boolean(initialContactId) && formData.contact_ids.length > 0}
+                >
+                  <option value="">Select a contact to add</option>
+                  {contacts
+                    .filter(c => !formData.contact_ids.includes(c.id))
+                    .map(contact => (
+                      <option key={contact.id} value={contact.id}>
+                        {contact.first_name} {contact.last_name} - {contact.company_name || 'No Company'}
+                      </option>
+                    ))}
+                </select>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={addContact}
+                  disabled={!formData.selected_contact_id}
+                >
+                  + Add
+                </button>
+              </div>
             </div>
 
             <div className="form-row">

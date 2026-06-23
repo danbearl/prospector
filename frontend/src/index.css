@@ -578,3 +578,59 @@ tbody tr:last-child td {
 }
 
 /* Made with Bob */
+
+/* Bulk Outreach - Contact Selection Styles */
+.selected-contacts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 0.75rem;
+  padding: 0.5rem;
+  background-color: #f8f9fa;
+  border-radius: 4px;
+  min-height: 40px;
+}
+
+.contact-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.75rem;
+  background-color: #3498db;
+  color: white;
+  border-radius: 16px;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.contact-chip .remove-chip {
+  background: none;
+  border: none;
+  color: white;
+  font-size: 1.25rem;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0;
+  margin-left: 0.25rem;
+  opacity: 0.8;
+  transition: opacity 0.2s;
+}
+
+.contact-chip .remove-chip:hover {
+  opacity: 1;
+}
+
+.add-contact-row {
+  display: flex;
+  gap: 0.5rem;
+  align-items: stretch;
+}
+
+.add-contact-row select {
+  flex: 1;
+}
+
+.add-contact-row .btn {
+  white-space: nowrap;
+  padding: 0.5rem 1rem;
+}
